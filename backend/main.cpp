@@ -2,7 +2,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
-#include <limits>
+#incl   ude <limits>
 #include <iomanip>
 
 // Thư viện mã nguồn mở (Open-source) để xử lý JSON trong C++
@@ -19,7 +19,7 @@ using json = nlohmann::json;
 // =====================================================
 static const string DB_HOST = "127.0.0.1";
 static const string DB_USER = "root";
-static const string DB_PASSWORD = "Minhdat1";
+static const string DB_PASSWORD = "Hung28112007@";
 static const string DB_SCHEMA = "energy_management_db";
 
 // =====================================================
