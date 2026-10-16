@@ -766,6 +766,7 @@ int main() {
             cout << "5. Thêm Thiết bị mới\n";
             cout << "6. Cập nhật trạng thái phòng theo giờ\n";
             cout << "7. Chọn chế độ tối ưu năng lượng cho Phòng\n";   // ★ MỚI
+            cout << "8. Mô phỏng Calculation theo giờ\n";
             cout << "0. Thoát\n";
             cout << "----------------------------------------\n";
             choice = getIntInput("Mời bạn chọn: ");
@@ -895,6 +896,9 @@ int main() {
                 cout << "3. Peak Shaving    (giảm tải giờ cao điểm 18h-21h)\n";
                 cout << "4. Auto Adaptive   (tự thích ứng theo người + nhiệt độ)\n";
                 int sChoice = getIntInput("Mời chọn: ");
+            else if (choice == 8) {
+                runCalculationSimulation(db.get());
+            }
 
                 string stratKey;
                 switch (sChoice) {
