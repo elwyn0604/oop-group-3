@@ -1,3 +1,4 @@
+// Note từ Minh Đạt: Bỏ hết mấy cái khai báo ở đầu, paste thẳng vào dưới main.cpp xong chạy main.cpp là chạy được
 // #define CALC_STANDALONE  // ← Bỏ dấu // nếu compile ĐỘC LẬP
 
 #include <iostream>
