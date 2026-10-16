@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 #include <mysql.h>
+#include <memory>
 using namespace std;
 using json = nlohmann::json;
 
@@ -767,6 +768,7 @@ int main() {
             cout << "6. Cập nhật trạng thái phòng theo giờ\n";
             cout << "7. Chọn chế độ tối ưu năng lượng cho Phòng\n";   // ★ MỚI
             cout << "8. Mô phỏng Calculation theo giờ\n";
+            cout << "9. Mô phỏng Decorator (Smart Control + Age)\n";
             cout << "0. Thoát\n";
             cout << "----------------------------------------\n";
             choice = getIntInput("Mời bạn chọn: ");
@@ -898,6 +900,9 @@ int main() {
                 int sChoice = getIntInput("Mời chọn: ");
             else if (choice == 8) {
                 runCalculationSimulation(db.get());
+            }
+            else if (choice == 9) {
+                runDecoratorSimulation(db.get());
             }
 
                 string stratKey;
