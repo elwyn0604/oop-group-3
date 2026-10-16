@@ -153,6 +153,7 @@ CREATE TABLE `rooms` (
   `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `room_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `capacity` int DEFAULT '10' COMMENT 'Sức chứa tối đa',
+  `energy_strategy` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT 'normal' COMMENT 'normal | eco | peak | auto',
   `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -180,4 +181,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-11 21:15:33
+-- Dump completed on 2026-10-16 00:00:00
