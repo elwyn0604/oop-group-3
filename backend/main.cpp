@@ -6,17 +6,16 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 #include <mysql.h>
-
 using namespace std;
 using json = nlohmann::json;
 
 // =====================================================
 // THÔNG TIN KẾT NỐI MYSQL
 // =====================================================
-static const string DB_HOST = "127.0.0.1";
-static const string DB_USER = "root";
+static const string DB_HOST     = "127.0.0.1";
+static const string DB_USER     = "root";
 static const string DB_PASSWORD = "Minhdat1";
-static const string DB_SCHEMA = "energy_management_db";
+static const string DB_SCHEMA   = "energy_management_db";
 
 // =====================================================
 // HÀM HỖ TRỢ NHẬP LIỆU
@@ -101,7 +100,6 @@ public:
     int peopleCount;
     double temperatureC;
     bool hasData;
-
     RoomState() : peopleCount(0), temperatureC(25.0), hasData(false) {}
 };
 
@@ -109,37 +107,38 @@ class RoomDayProfile {
 public:
     int capacity;
     RoomState hours[24];
-
     RoomDayProfile() : capacity(10) {}
 
-    // Lấy trạng thái tại một giờ. Nếu giờ đó chưa có dữ liệu,
-    // lùi dần về các giờ trước đó để tìm giá trị gần nhất.
     RoomState getStateAt(int hour) const {
         hour = ((hour % 24) + 24) % 24;
-
         if (hours[hour].hasData) return hours[hour];
-
         for (int step = 1; step < 24; step++) {
             int h = (hour - step + 24) % 24;
             if (hours[h].hasData) return hours[h];
         }
-
-        return RoomState(); // Mặc định: 0 người, 25 độ
+        return RoomState();
     }
 };
 
 // =====================================================
 // =====================================================
-// BLOCK: STRATEGY
+// BLOCK: STRATEGY  (★ SỬA: đổi tên + thêm tham số hour)
 // =====================================================
 // =====================================================
 class IEnergyStrategy {
 public:
     virtual ~IEnergyStrategy() {}
     virtual string getName() = 0;
-    // Trả về hệ số điều chỉnh (factor).
-    // 1.0 = bình thường, >1 = tốn điện hơn, <1 = tiết kiệm hơn.
-    virtual double calculateFactor(const json& attrs, const RoomState& state, int capacity) = 0;
+
+    // ★ SỬA: thêm tham số `hour` để strategy biết đang tính ở giờ nào
+    // (cần cho PeakShaving — giảm tải giờ cao điểm 18h-21h)
+    //
+    // Trả về hệ số điều chỉnh (factor):
+    //   1.0 = bình thường,  <1 = tiết kiệm,  >1 = tốn hơn
+    virtual double calculateFactor(const json& attrs,
+                                   const RoomState& state,
+                                   int capacity,
+                                   int hour) = 0;
 };
 
 double occupancyRateOf(const RoomState& state, int capacity) {
@@ -150,28 +149,29 @@ double occupancyRateOf(const RoomState& state, int capacity) {
     return rate;
 }
 
-// Strategy 1: Không điều chỉnh gì
-class StandardStrategy : public IEnergyStrategy {
+// Strategy 1: Normal Mode — chạy bình thường, không tối ưu
+class NormalModeStrategy : public IEnergyStrategy {
 public:
-    string getName() override { return "Standard"; }
-    double calculateFactor(const json& attrs, const RoomState& state, int capacity) override {
+    string getName() override { return "Normal Mode"; }
+    double calculateFactor(const json& attrs, const RoomState& state, int capacity, int hour) override {
         return 1.0;
     }
 };
 
-// Strategy 2: Giảm điện khi phòng vắng người
-class EcoStrategy : public IEnergyStrategy {
+// Strategy 2: Eco Saving — giảm điện khi phòng vắng người
+// (dùng occupancy_sensitivity của Device)
+class EcoSavingStrategy : public IEnergyStrategy {
 public:
     string getName() override { return "Eco Saving"; }
-    double calculateFactor(const json& attrs, const RoomState& state, int capacity) override {
+    double calculateFactor(const json& attrs, const RoomState& state, int capacity, int hour) override {
         int os = clampInt((int)getJsonNumber(attrs, "occupancy_sensitivity", 0), 0, 5);
-        if (os <= 0) return 1.0;
+        if (os <= 0) return 1.0;   // thiết bị không nhạy với người -> không bị ảnh hưởng
 
         double occ = occupancyRateOf(state, capacity);
         double reduction = 0.0;
-        if (occ <= 0.0) reduction = os * 0.12;
-        else if (occ < 0.3) reduction = os * 0.08;
-        else if (occ < 0.6) reduction = os * 0.04;
+        if (occ <= 0.0)      reduction = os * 0.12;
+        else if (occ < 0.3)  reduction = os * 0.08;
+        else if (occ < 0.6)  reduction = os * 0.04;
 
         double factor = 1.0 - reduction;
         if (factor < 0.2) factor = 0.2;
@@ -179,49 +179,51 @@ public:
     }
 };
 
-// Strategy 3: Tăng điện khi trời nóng
-class PeakStrategy : public IEnergyStrategy {
+// Strategy 3: Peak Shaving — giảm tải vào giờ cao điểm 18h-21h
+// ★ SỬA: cũ là "tăng điện khi trời nóng", giờ đổi thành "giảm tải giờ cao điểm"
+// (dùng temp_sensitivity của Device: thiết bị nhạy nhiệt giảm ít hơn để giữ mát)
+class PeakShavingStrategy : public IEnergyStrategy {
 public:
-    string getName() override { return "Peak / Hot Environment"; }
-    double calculateFactor(const json& attrs, const RoomState& state, int capacity) override {
+    string getName() override { return "Peak Shaving"; }
+    double calculateFactor(const json& attrs, const RoomState& state, int capacity, int hour) override {
+        // Chỉ giảm tải trong khung giờ cao điểm 18h - 21h
+        if (hour < 18 || hour >= 21) return 1.0;
+
         int ts = clampInt((int)getJsonNumber(attrs, "temp_sensitivity", 0), 0, 5);
-        if (ts <= 0) return 1.0;
 
-        double temp = state.temperatureC;
-        double addition = 0.0;
-        if (temp >= 35.0) addition = ts * 0.07;
-        else if (temp >= 30.0) addition = ts * 0.05;
-        else if (temp <= 22.0) addition = -ts * 0.02;
+        double baseReduction = 0.30;          // giảm 30% mặc định
+        double tsKeep = ts * 0.04;            // nhạy nhiệt cao -> giảm ít hơn (cần giữ mát)
+        double reduction = baseReduction - tsKeep;
+        if (reduction < 0.05) reduction = 0.05;
 
-        double factor = 1.0 + addition;
-        if (factor < 0.5) factor = 0.5;
-        return factor;
+        return 1.0 - reduction;
     }
 };
 
-// Strategy 4: Kết hợp cả người và nhiệt độ
-class AutoStrategy : public IEnergyStrategy {
+// Strategy 4: Auto Adaptive — kết hợp cả người và nhiệt độ
+class AutoAdaptiveStrategy : public IEnergyStrategy {
 public:
     string getName() override { return "Auto Adaptive"; }
-    double calculateFactor(const json& attrs, const RoomState& state, int capacity) override {
+    double calculateFactor(const json& attrs, const RoomState& state, int capacity, int hour) override {
         int ts = clampInt((int)getJsonNumber(attrs, "temp_sensitivity", 0), 0, 5);
         int os = clampInt((int)getJsonNumber(attrs, "occupancy_sensitivity", 0), 0, 5);
-
         double factor = 1.0;
 
+        // Tác động theo số người (giống Eco)
         if (os > 0) {
             double occ = occupancyRateOf(state, capacity);
             double reduction = 0.0;
-            if (occ <= 0.0) reduction = os * 0.12;
-            else if (occ < 0.3) reduction = os * 0.08;
-            else if (occ < 0.6) reduction = os * 0.04;
+            if (occ <= 0.0)      reduction = os * 0.12;
+            else if (occ < 0.3)  reduction = os * 0.08;
+            else if (occ < 0.6)  reduction = os * 0.04;
             factor *= (1.0 - reduction);
         }
 
+        // Tác động theo nhiệt độ (trời nóng -> tốn điện hơn, trời mát -> đỡ hơn)
         if (ts > 0) {
             double temp = state.temperatureC;
             double addition = 0.0;
-            if (temp >= 35.0) addition = ts * 0.07;
+            if (temp >= 35.0)      addition = ts * 0.07;
             else if (temp >= 30.0) addition = ts * 0.05;
             else if (temp <= 22.0) addition = -ts * 0.02;
             factor *= (1.0 + addition);
@@ -232,21 +234,28 @@ public:
     }
 };
 
-// Các object strategy dùng chung
-StandardStrategy standardStrategy;
-EcoStrategy ecoStrategy;
-PeakStrategy peakStrategy;
-AutoStrategy autoStrategy;
+// Các object strategy dùng chung (singleton toàn cục)
+NormalModeStrategy   normalModeStrategy;
+EcoSavingStrategy    ecoSavingStrategy;
+PeakShavingStrategy  peakShavingStrategy;
+AutoAdaptiveStrategy autoAdaptiveStrategy;
 
-// Hệ thống tự chọn strategy dựa trên sensitivity của thiết bị
-IEnergyStrategy* pickStrategy(const json& attrs) {
-    int ts = clampInt((int)getJsonNumber(attrs, "temp_sensitivity", 0), 0, 5);
-    int os = clampInt((int)getJsonNumber(attrs, "occupancy_sensitivity", 0), 0, 5);
+// =====================================================
+// ★ MỚI: hàm chuyển đổi giữa string trong DB <-> object strategy
+// Dùng khi lưu/đọc cột `energy_strategy` của bảng rooms
+// =====================================================
+string strategyToKey(IEnergyStrategy* s) {
+    if (s == &ecoSavingStrategy)   return "eco";
+    if (s == &peakShavingStrategy) return "peak";
+    if (s == &autoAdaptiveStrategy) return "auto";
+    return "normal";
+}
 
-    if (ts > 0 && os > 0) return &autoStrategy;
-    if (os > 0) return &ecoStrategy;
-    if (ts > 0) return &peakStrategy;
-    return &standardStrategy;
+IEnergyStrategy* keyToStrategy(const string& key) {
+    if (key == "eco")  return &ecoSavingStrategy;
+    if (key == "peak") return &peakShavingStrategy;
+    if (key == "auto") return &autoAdaptiveStrategy;
+    return &normalModeStrategy;
 }
 
 // =====================================================
@@ -254,6 +263,8 @@ IEnergyStrategy* pickStrategy(const json& attrs) {
 // BLOCK: COMPOSITE
 // =====================================================
 // =====================================================
+class IEnergyStrategy; // forward declaration (đã định nghĩa ở trên, dòng này chỉ để rõ ý)
+
 class IComponent {
 public:
     virtual ~IComponent() {}
@@ -267,6 +278,9 @@ public:
     virtual void printTree(int level, int mode) = 0;
     virtual void printDetailDaily() {}
     virtual void setDayProfile(RoomDayProfile* profile) {}
+
+    // ★ MỚI: cho phép gán strategy từ cha (Room) xuống con (Device)
+    virtual void setStrategy(IEnergyStrategy* s) {}
 };
 
 class CompositeComponent : public IComponent {
@@ -274,10 +288,8 @@ protected:
     int id;
     string name;
     vector<IComponent*> children;
-
 public:
     CompositeComponent(int _id, string _name) : id(_id), name(_name) {}
-
     ~CompositeComponent() {
         for (int i = 0; i < (int)children.size(); i++) {
             delete children[i];
@@ -296,13 +308,11 @@ public:
         for (int i = 0; i < (int)children.size(); i++) total += children[i]->getDailyKwh();
         return total;
     }
-
     double getWeeklyKwh() override {
         double total = 0.0;
         for (int i = 0; i < (int)children.size(); i++) total += children[i]->getWeeklyKwh();
         return total;
     }
-
     double getMonthlyKwh() override {
         double total = 0.0;
         for (int i = 0; i < (int)children.size(); i++) total += children[i]->getMonthlyKwh();
@@ -314,14 +324,13 @@ public:
         string indent(level * 2, ' ');
         double value;
         string label;
-        if (mode == 0) { value = getDailyKwh(); label = "Daily"; }
-        else if (mode == 1) { value = getWeeklyKwh(); label = "Weekly"; }
-        else { value = getMonthlyKwh(); label = "Monthly"; }
+        if (mode == 0)      { value = getDailyKwh();   label = "Daily"; }
+        else if (mode == 1) { value = getWeeklyKwh();  label = "Weekly"; }
+        else                { value = getMonthlyKwh(); label = "Monthly"; }
 
         cout << fixed << setprecision(2);
         cout << indent << "[" << getKind() << "] " << name
              << " - " << label << ": " << value << " kWh\n";
-
         for (int i = 0; i < (int)children.size(); i++) {
             children[i]->printTree(level + 1, mode);
         }
@@ -336,6 +345,13 @@ public:
     void setDayProfile(RoomDayProfile* profile) override {
         for (int i = 0; i < (int)children.size(); i++) {
             children[i]->setDayProfile(profile);
+        }
+    }
+
+    // ★ MỚI: truyền strategy xuống tất cả con
+    void setStrategy(IEnergyStrategy* s) override {
+        for (int i = 0; i < (int)children.size(); i++) {
+            children[i]->setStrategy(s);
         }
     }
 };
@@ -355,15 +371,16 @@ public:
 class Room : public CompositeComponent {
 private:
     int capacity;
-    RoomDayProfile* profile; // Room sở hữu profile này
+    RoomDayProfile* profile;          // Room sở hữu profile này
+    IEnergyStrategy* strategy;        // ★ MỚI: Room sở hữu strategy
 
 public:
     Room(int id, string code, string name, int cap)
         : CompositeComponent(id, name), capacity(cap) {
         profile = new RoomDayProfile();
         profile->capacity = cap;
+        strategy = &normalModeStrategy;   // ★ MỚI: mặc định Normal
     }
-
     ~Room() {
         delete profile;
     }
@@ -372,28 +389,35 @@ public:
     int getCapacity() { return capacity; }
     RoomDayProfile* getProfile() { return profile; }
 
+    // ★ MỚI: getter / setter strategy cho Room
+    IEnergyStrategy* getStrategy() { return strategy; }
+    void setRoomStrategy(IEnergyStrategy* s) {
+        if (s) strategy = s;
+    }
+
     void printTree(int level, int mode) override {
         string indent(level * 2, ' ');
         double value;
         string label;
-        if (mode == 0) { value = getDailyKwh(); label = "Daily"; }
-        else if (mode == 1) { value = getWeeklyKwh(); label = "Weekly"; }
-        else { value = getMonthlyKwh(); label = "Monthly"; }
+        if (mode == 0)      { value = getDailyKwh();   label = "Daily"; }
+        else if (mode == 1) { value = getWeeklyKwh();  label = "Weekly"; }
+        else                { value = getMonthlyKwh(); label = "Monthly"; }
 
         cout << fixed << setprecision(2);
         cout << indent << "[Room] " << name
              << " (sức chứa: " << capacity << ")"
+             << " [Mode: " << strategy->getName() << "]"      // ★ MỚI: hiện mode
              << " - " << label << ": " << value << " kWh\n";
-
         for (int i = 0; i < (int)children.size(); i++) {
             children[i]->printTree(level + 1, mode);
         }
     }
 
-    // Sau khi load trạng thái phòng xong, truyền profile cho các thiết bị
+    // Sau khi load trạng thái phòng xong, truyền profile + strategy cho các thiết bị
     void applyProfileToChildren() {
         for (int i = 0; i < (int)children.size(); i++) {
             children[i]->setDayProfile(profile);
+            children[i]->setStrategy(strategy);   // ★ MỚI: truyền strategy xuống Device
         }
     }
 };
@@ -402,8 +426,8 @@ class Device : public IComponent {
 private:
     int id;
     string name;
-    json attributes;
-    IEnergyStrategy* strategy;
+    json attributes;              // vẫn giữ sensitivity, rated_power, schedule...
+    IEnergyStrategy* strategy;    // ★ SỬA: nhận từ Room, không tự chọn nữa
     RoomDayProfile* profile;
 
     struct ScheduleSlot {
@@ -411,7 +435,6 @@ private:
         int endHour;
     };
     vector<ScheduleSlot> schedule;
-
     double ratedPower;
     double usageDaysPerWeek;
 
@@ -430,14 +453,16 @@ public:
         if (usageDaysPerWeek > 7) usageDaysPerWeek = 7;
         if (usageDaysPerWeek < 0) usageDaysPerWeek = 0;
 
-        strategy = pickStrategy(attributes);
+        // ★ SỬA: KHÔNG tự chọn strategy nữa (bỏ pickStrategy)
+        // Mặc định Normal, sau đó Room sẽ gọi setStrategy() để gán
+        strategy = &normalModeStrategy;
 
         if (attributes.contains("schedule") && attributes["schedule"].is_array()) {
             for (const auto& slot : attributes["schedule"]) {
                 if (!slot.is_object()) continue;
                 ScheduleSlot s;
                 s.startHour = slot.value("start", 0);
-                s.endHour = slot.value("end", 0);
+                s.endHour   = slot.value("end", 0);
                 schedule.push_back(s);
             }
         }
@@ -447,8 +472,11 @@ public:
     string getName() override { return name; }
     string getKind() override { return "Device"; }
 
-    void setDayProfile(RoomDayProfile* p) override {
-        profile = p;
+    void setDayProfile(RoomDayProfile* p) override { profile = p; }
+
+    // ★ MỚI: Room truyền strategy xuống qua đây
+    void setStrategy(IEnergyStrategy* s) override {
+        if (s) strategy = s;
     }
 
     bool isOnAt(int hour) const {
@@ -460,7 +488,6 @@ public:
             if (s < e) {
                 if (hour >= s && hour < e) return true;
             } else {
-                // Khoảng vắt qua nửa đêm, ví dụ 22 -> 2
                 if (hour >= s || hour < e) return true;
             }
         }
@@ -473,7 +500,8 @@ public:
             if (!isOnAt(hour)) continue;
             RoomState state = profile ? profile->getStateAt(hour) : RoomState();
             int cap = profile ? profile->capacity : 10;
-            double factor = strategy->calculateFactor(attributes, state, cap);
+            // ★ SỬA: truyền thêm `hour` vào calculateFactor
+            double factor = strategy->calculateFactor(attributes, state, cap, hour);
             total += (ratedPower / 1000.0) * 1.0 * factor;
         }
         return total;
@@ -482,7 +510,6 @@ public:
     double getWeeklyKwh() override {
         return getDailyKwh() * usageDaysPerWeek;
     }
-
     double getMonthlyKwh() override {
         return getWeeklyKwh() * 52.0 / 12.0;
     }
@@ -491,9 +518,9 @@ public:
         string indent(level * 2, ' ');
         double value;
         string label;
-        if (mode == 0) { value = getDailyKwh(); label = "Daily"; }
-        else if (mode == 1) { value = getWeeklyKwh(); label = "Weekly"; }
-        else { value = getMonthlyKwh(); label = "Monthly"; }
+        if (mode == 0)      { value = getDailyKwh();   label = "Daily"; }
+        else if (mode == 1) { value = getWeeklyKwh();  label = "Weekly"; }
+        else                { value = getMonthlyKwh(); label = "Monthly"; }
 
         cout << fixed << setprecision(2);
         cout << indent << "[Device] " << name
@@ -503,29 +530,25 @@ public:
 
     void printDetailDaily() override {
         cout << fixed << setprecision(2);
-        cout << "\n  [Chi tiết theo giờ] " << name
+        cout << "\n[Chi tiết theo giờ] " << name
              << " - Strategy: " << strategy->getName() << "\n";
-
         double dayTotal = 0.0;
         bool hasOnHour = false;
-
         for (int hour = 0; hour < 24; hour++) {
             if (!isOnAt(hour)) continue;
             hasOnHour = true;
-
             RoomState state = profile ? profile->getStateAt(hour) : RoomState();
             int cap = profile ? profile->capacity : 10;
-            double factor = strategy->calculateFactor(attributes, state, cap);
+            // ★ SỬA: truyền thêm hour
+            double factor = strategy->calculateFactor(attributes, state, cap, hour);
             double kwh = (ratedPower / 1000.0) * 1.0 * factor;
             dayTotal += kwh;
-
             cout << "    " << setw(2) << hour << "h: BẬT "
                  << " | " << state.peopleCount << " người"
                  << " | " << state.temperatureC << " độ C"
                  << " | hệ số " << factor
                  << " | " << kwh << " kWh\n";
         }
-
         if (!hasOnHour) {
             cout << "    (Thiết bị không bật giờ nào trong ngày)\n";
         } else {
@@ -540,16 +563,16 @@ public:
 class DbContext {
 private:
     MYSQL* conn;
-
 public:
     DbContext() {
         conn = mysql_init(nullptr);
-        if (!mysql_real_connect(conn, DB_HOST.c_str(), DB_USER.c_str(), DB_PASSWORD.c_str(), DB_SCHEMA.c_str(), 3306, nullptr, 0)) {
+        if (!mysql_real_connect(conn, DB_HOST.c_str(), DB_USER.c_str(),
+                                DB_PASSWORD.c_str(), DB_SCHEMA.c_str(),
+                                3306, nullptr, 0)) {
             throw runtime_error("Lỗi kết nối MySQL: " + string(mysql_error(conn)));
         }
         mysql_set_character_set(conn, "utf8mb4");
     }
-
     ~DbContext() { if (conn) mysql_close(conn); }
 
     MYSQL* get() { return conn; }
@@ -568,7 +591,6 @@ vector<vector<string>> executeQuery(MYSQL* conn, const string& sql) {
     }
     MYSQL_RES* result = mysql_store_result(conn);
     if (!result) return {};
-
     vector<vector<string>> rows;
     int num_fields = mysql_num_fields(result);
     MYSQL_ROW row;
@@ -590,7 +612,6 @@ Building* loadBuildingFromDB(DbContext& db, int buildingId) {
     string sqlB = "SELECT id, building_code, name FROM buildings WHERE id = " + to_string(buildingId);
     auto b_rows = executeQuery(db.get(), sqlB);
     if (b_rows.empty()) return nullptr;
-
     Building* building = new Building(safeGetInt(b_rows[0][0]), b_rows[0][1], b_rows[0][2]);
 
     string sqlF = "SELECT id, floor_code, name FROM floors WHERE building_id = " + to_string(buildingId);
@@ -600,17 +621,20 @@ Building* loadBuildingFromDB(DbContext& db, int buildingId) {
         int floorId = safeGetInt(f[0]);
         Floor* floor = new Floor(floorId, f[1], f[2]);
 
-        string sqlR = "SELECT id, room_code, name, capacity FROM rooms WHERE floor_id = " + to_string(floorId);
+        // ★ SỬA: đọc thêm cột energy_strategy (vị trí index 4)
+        string sqlR = "SELECT id, room_code, name, capacity, energy_strategy FROM rooms WHERE floor_id = " + to_string(floorId);
         auto r_rows = executeQuery(db.get(), sqlR);
 
         for (const auto& r : r_rows) {
-            int roomId = safeGetInt(r[0]);
+            int roomId     = safeGetInt(r[0]);
             string roomCode = r[1];
             string roomName = r[2];
-            int capacity = safeGetInt(r[3]);
+            int capacity    = safeGetInt(r[3]);
+            string stratKey = r[4];              // ★ MỚI: đọc strategy từ DB
             if (capacity <= 0) capacity = 10;
 
             Room* room = new Room(roomId, roomCode, roomName, capacity);
+            room->setRoomStrategy(keyToStrategy(stratKey));   // ★ MỚI: gán strategy cho Room
 
             // Load trạng thái phòng theo giờ
             string sqlS = "SELECT hour_of_day, people_count, temperature_c FROM room_states WHERE room_id = " + to_string(roomId);
@@ -619,7 +643,7 @@ Building* loadBuildingFromDB(DbContext& db, int buildingId) {
             for (const auto& srow : s_rows) {
                 int h = safeGetInt(srow[0]);
                 if (h < 0 || h > 23) continue;
-                profile->hours[h].peopleCount = safeGetInt(srow[1]);
+                profile->hours[h].peopleCount  = safeGetInt(srow[1]);
                 profile->hours[h].temperatureC = safeGetDouble(srow[2], 25.0);
                 profile->hours[h].hasData = true;
             }
@@ -632,15 +656,12 @@ Building* loadBuildingFromDB(DbContext& db, int buildingId) {
                 room->addChild(device);
             }
 
-            // Truyền trạng thái phòng cho thiết bị
+            // Truyền profile + strategy xuống thiết bị
             room->applyProfileToChildren();
-
             floor->addChild(room);
         }
-
         building->addChild(floor);
     }
-
     return building;
 }
 
@@ -689,10 +710,23 @@ void upsertRoomStates(DbContext& db, int roomId, int startHour, int endHour, int
 }
 
 // =====================================================
+// ★ MỚI: cập nhật strategy cho một phòng
+// =====================================================
+void updateRoomStrategy(DbContext& db, int roomId, const string& stratKey) {
+    string sql = "UPDATE rooms SET energy_strategy = '" + db.escape(stratKey) + "' WHERE id = " + to_string(roomId);
+    if (mysql_query(db.get(), sql.c_str())) {
+        cout << ">> Lỗi cập nhật: " << mysql_error(db.get()) << "\n";
+    } else {
+        cout << ">> Đã cập nhật chế độ năng lượng cho phòng thành công!\n";
+    }
+}
+
+// =====================================================
 // LIST FLOORS / ROOMS
 // =====================================================
 void listFloors(DbContext& db) {
-    auto rows = executeQuery(db.get(), "SELECT f.id, f.floor_code, f.name, b.name FROM floors f JOIN buildings b ON f.building_id = b.id ORDER BY f.id");
+    auto rows = executeQuery(db.get(),
+        "SELECT f.id, f.floor_code, f.name, b.name FROM floors f JOIN buildings b ON f.building_id = b.id ORDER BY f.id");
     if (rows.empty()) { cout << ">> Chưa có Tầng nào.\n"; return; }
     cout << "\n--- DANH SÁCH CÁC TẦNG ---\n";
     cout << "ID | Mã tầng | Tên tầng | Thuộc tòa nhà\n";
@@ -702,12 +736,14 @@ void listFloors(DbContext& db) {
 }
 
 void listRooms(DbContext& db) {
-    auto rows = executeQuery(db.get(), "SELECT r.id, r.room_code, r.name, f.name, r.capacity FROM rooms r JOIN floors f ON r.floor_id = f.id ORDER BY r.id");
+    // ★ SỬA: hiện thêm cột strategy để người dùng biết phòng đang chạy mode nào
+    auto rows = executeQuery(db.get(),
+        "SELECT r.id, r.room_code, r.name, f.name, r.capacity, r.energy_strategy FROM rooms r JOIN floors f ON r.floor_id = f.id ORDER BY r.id");
     if (rows.empty()) { cout << ">> Chưa có Phòng nào.\n"; return; }
     cout << "\n--- DANH SÁCH CÁC PHÒNG ---\n";
-    cout << "ID | Mã phòng | Tên phòng | Thuộc tầng | Sức chứa\n";
+    cout << "ID | Mã phòng | Tên phòng | Thuộc tầng | Sức chứa | Chế độ\n";
     for (const auto& r : rows) {
-        cout << r[0] << " | " << r[1] << " | " << r[2] << " | " << r[3] << " | " << r[4] << "\n";
+        cout << r[0] << " | " << r[1] << " | " << r[2] << " | " << r[3] << " | " << r[4] << " | " << r[5] << "\n";
     }
 }
 
@@ -729,9 +765,9 @@ int main() {
             cout << "4. Thêm Phòng mới\n";
             cout << "5. Thêm Thiết bị mới\n";
             cout << "6. Cập nhật trạng thái phòng theo giờ\n";
+            cout << "7. Chọn chế độ tối ưu năng lượng cho Phòng\n";   // ★ MỚI
             cout << "0. Thoát\n";
             cout << "----------------------------------------\n";
-
             choice = getIntInput("Mời bạn chọn: ");
 
             if (choice == 0) break;
@@ -754,7 +790,7 @@ int main() {
                 if (!building) {
                     cout << ">> Không tìm thấy Tòa nhà.\n";
                 } else {
-                    int mode = reportType - 1; // 0 ngày, 1 tuần, 2 tháng
+                    int mode = reportType - 1;
                     cout << "\n=== ENERGY HIERARCHY ===\n";
                     building->printTree(0, mode);
 
@@ -765,13 +801,12 @@ int main() {
 
                     double total;
                     string label;
-                    if (mode == 0) { total = building->getDailyKwh(); label = "Daily"; }
-                    else if (mode == 1) { total = building->getWeeklyKwh(); label = "Weekly"; }
-                    else { total = building->getMonthlyKwh(); label = "Monthly"; }
+                    if (mode == 0)      { total = building->getDailyKwh();   label = "Daily"; }
+                    else if (mode == 1) { total = building->getWeeklyKwh();  label = "Weekly"; }
+                    else                { total = building->getMonthlyKwh(); label = "Monthly"; }
 
                     cout << fixed << setprecision(2);
                     cout << "\nTotal " << label << " kWh: " << total << "\n";
-
                     delete building;
                 }
             }
@@ -807,53 +842,76 @@ int main() {
                 string dev_name = getStringInput("Tên thiết bị: ");
 
                 json attrs;
-                attrs["device_type"] = getStringInput("Loại thiết bị (chỉ để tham khảo): ");
-                attrs["rated_power_w"] = getDoubleInput("Công suất (W): ");
-                attrs["usage_days_per_week"] = getDoubleInput("Số ngày hoạt động mỗi tuần (0-7): ");
-                attrs["temp_sensitivity"] = clampInt(getIntInput("Mức nhạy cảm với nhiệt độ (0-5): "), 0, 5);
+                attrs["device_type"]           = getStringInput("Loại thiết bị (chỉ để tham khảo): ");
+                attrs["rated_power_w"]         = getDoubleInput("Công suất (W): ");
+                attrs["usage_days_per_week"]   = getDoubleInput("Số ngày hoạt động mỗi tuần (0-7): ");
+                attrs["temp_sensitivity"]      = clampInt(getIntInput("Mức nhạy cảm với nhiệt độ (0-5): "), 0, 5);
                 attrs["occupancy_sensitivity"] = clampInt(getIntInput("Mức nhạy cảm với số người (0-5): "), 0, 5);
 
                 json schedule = json::array();
                 while (true) {
                     cout << "\n--- Thêm khoảng thời gian thiết bị BẬT ---\n";
                     int startHour = getIntInput("Giờ bắt đầu (0-23): ");
-                    int endHour = getIntInput("Giờ kết thúc (0-23, tại giờ này thiết bị đã tắt): ");
+                    int endHour   = getIntInput("Giờ kết thúc (0-23, tại giờ này thiết bị đã tắt): ");
                     startHour = clampInt(startHour, 0, 23);
-                    endHour = clampInt(endHour, 0, 23);
+                    endHour   = clampInt(endHour, 0, 23);
 
                     json slot;
                     slot["start"] = startHour;
-                    slot["end"] = endHour;
+                    slot["end"]   = endHour;
                     schedule.push_back(slot);
-
                     cout << ">> Đã thêm khoảng " << startHour << "h -> " << endHour << "h\n";
+
                     string more = getStringInput("Thêm khoảng bật khác? (y/n): ");
                     if (more != "y" && more != "Y") break;
                 }
                 attrs["schedule"] = schedule;
-
                 insertDevice(db, r_id, dev_name, attrs);
             }
             else if (choice == 6) {
                 listRooms(db);
                 int r_id = getIntInput(">> Nhập ID Phòng cần cập nhật trạng thái: ");
                 int startHour = getIntInput("Giờ bắt đầu (0-23): ");
-                int endHour = getIntInput("Giờ kết thúc (0-23): ");
+                int endHour   = getIntInput("Giờ kết thúc (0-23): ");
                 startHour = clampInt(startHour, 0, 23);
-                endHour = clampInt(endHour, 0, 23);
+                endHour   = clampInt(endHour, 0, 23);
                 if (endHour < startHour) swap(startHour, endHour);
 
                 int people = getIntInput("Số người trong phòng: ");
                 if (people < 0) people = 0;
                 double temperature = getDoubleInput("Nhiệt độ môi trường (độ C): ");
-
                 upsertRoomStates(db, r_id, startHour, endHour, people, temperature);
+            }
+            // =====================================================
+            // ★ MỚI: MENU 7 - CHỌN CHẾ ĐỘ TỐI ƯU NĂNG LƯỢNG CHO PHÒNG
+            // =====================================================
+            else if (choice == 7) {
+                listRooms(db);
+                int r_id = getIntInput(">> Nhập ID Phòng cần đổi chế độ: ");
+
+                cout << "\n--- CHỌN CHẾ ĐỘ TỐI ƯU NĂNG LƯỢNG ---\n";
+                cout << "1. Normal Mode    (chạy bình thường)\n";
+                cout << "2. Eco Saving      (giảm điện khi phòng vắng)\n";
+                cout << "3. Peak Shaving    (giảm tải giờ cao điểm 18h-21h)\n";
+                cout << "4. Auto Adaptive   (tự thích ứng theo người + nhiệt độ)\n";
+                int sChoice = getIntInput("Mời chọn: ");
+
+                string stratKey;
+                switch (sChoice) {
+                    case 1: stratKey = "normal"; break;
+                    case 2: stratKey = "eco";    break;
+                    case 3: stratKey = "peak";   break;
+                    case 4: stratKey = "auto";   break;
+                    default:
+                        cout << ">> Lựa chọn không hợp lệ.\n";
+                        continue;
+                }
+                updateRoomStrategy(db, r_id, stratKey);
             }
         }
     } catch (const exception& e) {
         cerr << "Lỗi: " << e.what() << "\n";
         return 1;
     }
-
     return 0;
 }
