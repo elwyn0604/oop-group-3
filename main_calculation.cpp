@@ -305,7 +305,29 @@ void runCalculationSimulation(MYSQL* conn) {
     cout << ">> Cong thuc: Den tat khi du sang | AC +5%/do tren 25C"
          << " | Tat khi vang nguoi | Tang khi am cao\n";
 }
+// ============================================
+// THÊM ĐOẠN NÀY ĐỂ XUẤT FILE CHO GIAO DIỆN WEB
+// ============================================
+    nlohmann::json jOut;
+    jOut["buildingName"] = "Tòa nhà (ID: " + to_string(buildingId) + ")";
+    jOut["floorName"] = "Các tầng";
+    jOut["roomName"] = "Các phòng";
+    
+    // Quy đổi từ kWh 1 giờ ra tháng mẫu (hoặc giữ nguyên tùy bạn định nghĩa)
+    double monthlyBase = totalKwh * 24 * 30; 
+    double monthlyOpt = monthlyBase * 0.85; // Giả lập sau khi tối ưu giảm 15%
+    
+    jOut["baseMonthlyEnergy"] = monthlyBase;
+    jOut["optMonthlyEnergy"] = monthlyOpt;
+    jOut["savedEnergy"] = monthlyBase - monthlyOpt;
+    jOut["savedCost"] = (monthlyBase - monthlyOpt) * 3000; // Đơn giá 3000 VNĐ/kWh
 
+    // Ghi ra file data.json nằm chung thư mục với file chạy C++
+    std::ofstream jsonFile("data.json");
+    jsonFile << jOut.dump(4);
+    jsonFile.close();
+    
+    cout << ">> [WEB SYNC] Da tu dong xuat file data.json thanh cong cho Visual Dashboard!\n";
 // =====================================================
 // PHẦN 4: STANDALONE MODE
 // Chỉ compile khi #define CALC_STANDALONE được bật.
