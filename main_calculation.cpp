@@ -313,21 +313,20 @@ void runCalculationSimulation(MYSQL* conn) {
     jOut["floorName"] = "Các tầng";
     jOut["roomName"] = "Các phòng";
     
-    // Quy đổi từ kWh 1 giờ ra tháng mẫu (hoặc giữ nguyên tùy bạn định nghĩa)
     double monthlyBase = totalKwh * 24 * 30; 
-    double monthlyOpt = monthlyBase * 0.85; // Giả lập sau khi tối ưu giảm 15%
+    double monthlyOpt = monthlyBase * 0.85; 
     
     jOut["baseMonthlyEnergy"] = monthlyBase;
     jOut["optMonthlyEnergy"] = monthlyOpt;
     jOut["savedEnergy"] = monthlyBase - monthlyOpt;
-    jOut["savedCost"] = (monthlyBase - monthlyOpt) * 3000; // Đơn giá 3000 VNĐ/kWh
+    jOut["savedCost"] = (monthlyBase - monthlyOpt) * 3000; 
 
-    // Ghi ra file data.json nằm chung thư mục với file chạy C++
     std::ofstream jsonFile("data.json");
     jsonFile << jOut.dump(4);
     jsonFile.close();
     
     cout << ">> [WEB SYNC] Da tu dong xuat file data.json thanh cong cho Visual Dashboard!\n";
+} 
 // =====================================================
 // PHẦN 4: STANDALONE MODE
 // Chỉ compile khi #define CALC_STANDALONE được bật.
