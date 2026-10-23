@@ -232,6 +232,40 @@
 
         // Khởi chạy khi load trang
         window.onload = updateDashboard;
+
+    async function loadDataFromCpp() {
+    try {
+        // Đọc file data.json do C++ ở nhánh Calculation vừa xuất ra
+        let response = await fetch('data.json');
+        if (!response.ok) throw new Error("Không tìm thấy file data.json");
+        
+        let data = await response.json();
+
+        // Đổ dữ liệu từ C++ vào các ô input và thẻ hiển thị trên giao diện
+        document.getElementById('buildingName').value = data.buildingName;
+        document.getElementById('floorName').value = data.floorName;
+        document.getElementById('roomName').value = data.roomName;
+
+        document.getElementById('lblBaseEnergy').innerText = Math.round(data.baseMonthlyEnergy).toLocaleString() + " kWh";
+        document.getElementById('lblOptEnergy').innerText = Math.round(data.optMonthlyEnergy).toLocaleString() + " kWh";
+        document.getElementById('lblSavedEnergy').innerText = Math.round(data.savedEnergy).toLocaleString() + " kWh";
+        document.getElementById('lblSavedCost').innerText = Math.round(data.savedCost).toLocaleString() + " VNĐ";
+
+        // Cập nhật biểu đồ theo dữ liệu thật
+        let labelName = `${data.roomName} (${data.floorName} - ${data.buildingName})`;
+        document.getElementById('barChartTitle').innerText = `📊 So sánh Tiêu thụ: ${labelName}`;
+
+        renderCharts(labelName, data.baseMonthlyEnergy, data.optMonthlyEnergy, data.savedCost, document.getElementById('strategy').value);
+        
+        console.log("Đã đồng bộ dữ liệu thành công từ C++ Backend!");
+    } catch (error) {
+        console.log("Chưa có file data.json, đang dùng dữ liệu mẫu:", error);
+        updateDashboard(); // Dùng dữ liệu mẫu nếu mở HTML độc lập
+    }
+}
+
+// Tự động load khi mở trang web
+window.onload = loadDataFromCpp;
     </script>
 </body>
 </html>
