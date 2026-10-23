@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Management System - C++ Composite & Strategy Visual Wrapper</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white py-5 shadow-lg">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">⚡ Energy Simulation & Strategy Dashboard</h1>
+                <p class="text-slate-400 text-xs mt-0.5">Mô hình C++ Composite (Building -> Floor -> Room) kết hợp 4 Strategy Tối Ưu Năng Lượng</p>
+            </div>
+            <div class="bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-emerald-400">
+                ● System Active
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        <!-- Sidebar: Cấu hình đầu vào (Composite & Strategies) -->
+        <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+            <h2 class="text-base font-bold text-slate-700 border-b pb-3 flex items-center gap-2">
+                🏢 Cấu Hình Hệ Thống (Composite)
+            </h2>
+            
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Tòa nhà</label>
+                <input type="text" id="buildingName" value="Tòa A" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateDashboard()">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Tầng</label>
+                <input type="text" id="floorName" value="Tầng 1" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateDashboard()">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Phòng</label>
+                <input type="text" id="roomName" value="Phòng A101" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateDashboard()">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Công suất thiết bị/phòng (kW)</label>
+                <input type="number" id="avgPower" value="3.5" step="0.5" min="0.5" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateDashboard()">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Đơn giá điện (VNĐ/kWh)</label>
+                <input type="number" id="tariff" value="3000" step="100" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateDashboard()">
+            </div>
+
+            <div class="border-t pt-4">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">⚙️ Chọn Chiến Lược (Strategy)</label>
+                <select id="strategy" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-blue-600" onchange="updateDashboard()">
+                    <option value="normal">Strategy 1: Normal Mode (Không tối ưu)</option>
+                    <option value="eco" selected>Strategy 2: Eco Saving (Giảm khi vắng người)</option>
+                    <option value="peak">Strategy 3: Peak Shaving (Giảm giờ cao điểm 18h-21h)</option>
+                    <option value="adaptive">Strategy 4: Auto Adaptive (Kết hợp người & nhiệt độ)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Dashboard Visual & Charts Area -->
+        <div class="lg:col-span-3 space-y-6">
+            
+            <!-- Metric Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <p class="text-xs text-slate-500 font-medium">Tổng điện ban đầu</p>
+                    <h3 id="lblBaseEnergy" class="text-lg font-bold text-slate-800 mt-1">0 kWh</h3>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <p class="text-xs text-slate-500 font-medium">Điện sau tối ưu</p>
+                    <h3 id="lblOptEnergy" class="text-lg font-bold text-blue-600 mt-1">0 kWh</h3>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <p class="text-xs text-slate-500 font-medium">Điện năng giảm được</p>
+                    <h3 id="lblSavedEnergy" class="text-lg font-bold text-emerald-600 mt-1">0 kWh</h3>
+                </div>
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-sm">
+                    <p class="text-xs text-blue-100 font-medium">💰 Tiền tiết kiệm tháng</p>
+                    <h3 id="lblSavedCost" class="text-lg font-bold mt-1">0 VNĐ</h3>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Bar Chart: Tiêu thụ theo phòng/tòa -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 id="barChartTitle" class="text-sm font-bold text-slate-700 mb-3">📊 So sánh Tiêu thụ (Trước vs Sau)</h3>
+                    <div class="relative h-60">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Doughnut Chart: Phân bổ tiết kiệm -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold text-slate-700 mb-3">🥧 Tỷ trọng Tiết kiệm</h3>
+                    <div class="relative h-60 flex justify-center">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Chart: Load Profile 24h -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-sm font-bold text-slate-700 mb-3">📉 Đường cong Phụ tải 24 Giờ (Load Profile & Peak Shaving)</h3>
+                <div class="relative h-64">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- JavaScript Logic xử lý tính toán và vẽ biểu đồ -->
+    <script>
+        let barChartInstance = null;
+        let pieChartInstance = null;
+        let lineChartInstance = null;
+
+        function updateDashboard() {
+            const building = document.getElementById('buildingName').value || "Tòa nhà";
+            const floor = document.getElementById('floorName').value || "Tầng";
+            const room = document.getElementById('roomName').value || "Phòng";
+            const avgPower = parseFloat(document.getElementById('avgPower').value) || 3.0;
+            const tariff = parseFloat(document.getElementById('tariff').value) || 3000;
+            const strategyType = document.getElementById('strategy').value;
+
+            // 4 chiến lược tối ưu (Strategies):
+            // 1. Normal Mode: 1.0 (Không tối ưu)
+            // 2. Eco Saving: 0.85 (Giảm khi vắng người)
+            // 3. Peak Shaving: 0.80 (Giảm giờ cao điểm)
+            // 4. Auto Adaptive: 0.70 (Kết hợp người & nhiệt độ)
+            let strategyFactor = 1.0;
+            if (strategyType === 'eco') strategyFactor = 0.85;
+            if (strategyType === 'peak') strategyFactor = 0.80;
+            if (strategyType === 'adaptive') strategyFactor = 0.70;
+
+            // Nhãn hiển thị chi tiết theo Tòa - Tầng - Phòng
+            let labelName = `${room} (${floor} - ${building})`;
+
+            // Tính toán năng lượng (10 giờ/ngày trong 30 ngày)
+            let baseMonthlyEnergy = avgPower * 10 * 30; 
+            let optMonthlyEnergy = baseMonthlyEnergy * strategyFactor;
+            let savedEnergy = baseMonthlyEnergy - optMonthlyEnergy;
+            let savedMoney = savedEnergy * tariff;
+
+            // Cập nhật lên UI Metric Cards
+            document.getElementById('lblBaseEnergy').innerText = baseMonthlyEnergy.toLocaleString() + " kWh";
+            document.getElementById('lblOptEnergy').innerText = Math.round(optMonthlyEnergy).toLocaleString() + " kWh";
+            document.getElementById('lblSavedEnergy').innerText = Math.round(savedEnergy).toLocaleString() + " kWh";
+            document.getElementById('lblSavedCost').innerText = Math.round(savedMoney).toLocaleString() + " VNĐ";
+
+            document.getElementById('barChartTitle').innerText = `📊 So sánh Tiêu thụ: ${labelName}`;
+
+            // Vẽ lại Biểu đồ
+            renderCharts(labelName, baseMonthlyEnergy, optMonthlyEnergy, savedMoney, strategyType);
+        }
+
+        function renderCharts(label, baseData, optData, pieDataVal, strategyType) {
+            // 1. Bar Chart
+            const ctxBar = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            barChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: [label],
+                    datasets: [
+                        { label: 'Ban đầu', data: [baseData], backgroundColor: '#94a3b8', borderRadius: 6 },
+                        { label: 'Sau tối ưu', data: [optData], backgroundColor: '#2563eb', borderRadius: 6 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 2. Doughnut Chart
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            if (pieChartInstance) pieChartInstance.destroy();
+            pieChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: [label],
+                    datasets: [{
+                        data: [pieDataVal > 0 ? pieDataVal : 1],
+                        backgroundColor: ['#2563eb']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 3. Line Chart (24h Load Profile - Minh họa khung giờ 18h-21h của Peak Shaving)
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            let hours = Array.from({length: 24}, (_, i) => `${i}:00`);
+            
+            let baseLoad = hours.map((_, h) => 2 + 3 * Math.sin((h - 6) * Math.PI / 12));
+            baseLoad = baseLoad.map(val => Math.max(val, 0.5));
+
+            let optLoad = baseLoad.map((val, h) => {
+                if (strategyType === 'normal') return val;
+                if (strategyType === 'eco') return val * 0.85;
+                // Strategy 3: Peak Shaving (Giảm tải mạnh vào giờ cao điểm 18h đến 21h)
+                if (strategyType === 'peak' && h >= 18 && h <= 21) return val * 0.55; 
+                if (strategyType === 'peak') return val * 0.90;
+                // Strategy 4: Auto Adaptive (Tối ưu toàn diện)
+                if (strategyType === 'adaptive') return val * 0.70;
+                return val;
+            });
+
+            if (lineChartInstance) lineChartInstance.destroy();
+            lineChartInstance = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: hours,
+                    datasets: [
+                        { label: 'Phụ tải Gốc', data: baseLoad, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', tension: 0.3, fill: true },
+                        { label: 'Phụ tải Áp dụng Strategy', data: optLoad, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: true }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Khởi chạy khi load trang
+        window.onload = updateDashboard;
+    </script>
+</body>
+</html>
