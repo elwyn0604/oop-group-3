@@ -425,9 +425,13 @@ public:
     virtual double getDailyKwh() = 0;
     virtual double getWeeklyKwh() = 0;
     virtual double getMonthlyKwh() = 0;
-void printTree(int level, int mode) = 0;
-    virtual void printDetailDaily() {}
 
+    // ★ PATCH 1: bổ sung 2 method mà IComponent còn thiếu
+    virtual double getKwhAtHour(int /*hour*/) { return 0.0; }
+    virtual void addChild(IComponent* /*child*/) {}
+
+    virtual void printTree(int level, int mode) = 0;
+    virtual void printDetailDaily() {}
     virtual void setDayProfile(RoomDayProfile* profile) {}
     virtual void setStrategy(IEnergyStrategy* s) {}
 };
@@ -481,6 +485,15 @@ public:
         double total = 0.0;
         for (int i = 0; i < (int)children.size(); i++) {
             total += children[i]->getMonthlyKwh();
+        }
+        return total;
+    }
+
+    // ★ PATCH 2: cộng phụ tải từng giờ của tất cả con
+    double getKwhAtHour(int hour) override {
+        double total = 0.0;
+        for (int i = 0; i < (int)children.size(); i++) {
+            total += children[i]->getKwhAtHour(hour);
         }
         return total;
     }
@@ -724,26 +737,30 @@ public:
         return false;
     }
 
+    // ★ PATCH 3: sắp xếp lại 4 method bị vỡ
+    double getKwhAtHour(int hour) override {
+        if (!isOnAt(hour)) return 0.0;
+        RoomState state = profile ? profile->getStateAt(hour) : RoomState();
+        int cap = profile ? profile->capacity : 10;
+        double factor = strategy ? strategy->calculateFactor(attributes, state, cap, hour) : 1.0;
+        return (ratedPower / 1000.0) * factor;
+    }
+
     double getDailyKwh() override {
         double total = 0.0;
+        for (int h = 0; h < 24; h++) total += getKwhAtHour(h);
+        return total;
+    }
 
-        for (int hour = 0; hour < 24; hour++) {
+    double getWeeklyKwh() override {
+        return getDailyKwh() * usageDaysPerWeek;
+    }
+
     double getMonthlyKwh() override {
         return getWeeklyKwh() * 52.0 / 12.0;
     }
 
-        double getKwhAtHour(int hour) override {
-        if (!isOnAt(hour)) return 0.0;
-
-        RoomState state = profile ? profile->getStateAt(hour) : RoomState();
-        int cap = profile ? profile->capacity : 10;
-
-        double factor = strategy ? strategy->calculateFactor(attributes, state, cap, hour) : 1.0;
-
-        return (ratedPower / 1000.0) * 1.0 * factor;
-    }
-
-void printTree(int level, int mode) override {
+    void printTree(int level, int mode) override {
         string indent(level * 2, ' ');
 
         double value;
@@ -818,129 +835,50 @@ void printTree(int level, int mode) override {
 // =====================================================
 
 // Lop Decorator goc: giu con tro toi doi tuong bi bao boc
+// ★ PATCH 4: Decorator sạch — pass-through thuần túy
 class EnergyDecorator : public IComponent {
 protected:
-    IComponent* component;     // doi tuong bi bao boc
-    RoomDayProfile* profile;   // du lieu moi truong cua phong (giong Device)
-    string deviceType;         // loai thiet bi: light / ac / fan / ...
-
+    IComponent* component;
+    RoomDayProfile* profile;
+    string deviceType;
 public:
-    EnergyDecorator(IComponent* c, string devType) {
-        component = c;
-        deviceType = devType;
-        profile = nullptr;
-    }
+    EnergyDecorator(IComponent* c, string devType)
+        : component(c), profile(nullptr), deviceType(devType) {}
+    virtual ~EnergyDecorator() { delete component; }
 
-    // Decorator nam giu component -> phai huy no khi bi huy
-    virtual ~EnergyDecorator() {
-        delete component;
-    }
-
-    // 3 ham nay chi "hoi giup" component ben trong
     int getId() override      { return component->getId(); }
     string getName() override { return component->getName(); }
     string getKind() override { return component->getKind(); }
 
-    // Nhan du lieu tu Room, roi truyen tiep xuong component ben trong
     void setDayProfile(RoomDayProfile* p) override {
         profile = p;
         component->setDayProfile(p);
     }
+    void setStrategy(IEnergyStrategy* s) override { component->setStrategy(s); }
 
-    void setStrategy(IEnergyStrategy* s) override {
-        component->setStrategy(s);
-    }
+    double getKwhAtHour(int hour) override    { return component->getKwhAtHour(hour); }
+    double getDailyKwh() override             { return component->getDailyKwh(); }
+    double getWeeklyKwh() override            { return component->getWeeklyKwh(); }
+    double getMonthlyKwh() override           { return component->getMonthlyKwh(); }
 
-    // MAC DINH: tra ve ket qua cua component ben trong.
-    // Cac Decorator con se ghi de (override) ham nay de dieu chinh.
-    double getKwhAtHour(int hour) override {
-        return component->getKwhAtHour(hour);
-    }
-
-    // Tinh lai tong ngay theo tung gio DA duoc dieu chinh
-    double getDailyKwh() override {
-        double total = 0.0;
-        for (int hour = 0; hour < 24; hour++) {
-            total += getKwhAtHour(hour);
-        }
-        return total;
-    }
-
-    // Tuan / Thang: giu dung "so ngay hoat dong" cua Device,
-    // chi thay doi theo dung ty le ma Decorator da giam/tang trong ngay
-    double getWeeklyKwh() override {
-        double baseDaily = component->getDailyKwh();
-        if (baseDaily <= 0.0) return component->getWeeklyKwh();
-        double ratio = getDailyKwh() / baseDaily;
-        return component->getWeeklyKwh() * ratio;
-    }
-
-    double getMonthlyKwh() override {
-        double baseDaily = component->getDailyKwh();
-        if (baseDaily <= 0.0) return component->getMonthlyKwh();
-        double ratio = getDailyKwh() / baseDaily;
-        return component->getMonthlyKwh() * ratio;
-    }
-
-    double getKwhAtHour(int hour) override {
-        double total = 0.0;
-        for (size_t i = 0; i < children.size(); i++) {
-            total += children[i]->getKwhAtHour(hour);
-        }
-        return total;
-    }
-
-    void printTree(int level, int mode) override {
-        string indent(level * 2, ' ');
-        double value;
-        string label;
-        if (mode == 0)      { value = getDailyKwh();   label = "Daily"; }
-        else if (mode == 1) { value = getWeeklyKwh();  label = "Weekly"; }
-        else                { value = getMonthlyKwh(); label = "Monthly"; }
-
-        cout << fixed << setprecision(2);
-        cout << indent << "[" << getKind() << " +Decorator] " << getName()
-             << " - " << label << ": " << value << " kWh\n";
-    }
-
-    void printDetailDaily() override {
-        cout << fixed << setprecision(2);
-        cout << "\n[Chi tiet theo gio - Decorator] " << getName() << "\n";
-        double dayTotal = 0.0;
-        bool hasOnHour = false;
-        for (int hour = 0; hour < 24; hour++) {
-            double kwh = getKwhAtHour(hour);
-            if (kwh <= 0.0) continue;
-            hasOnHour = true;
-            dayTotal += kwh;
-            cout << "    " << setw(2) << hour << "h: " << kwh << " kWh\n";
-        }
-        if (!hasOnHour) cout << "    (Thiet bi khong ton dien gio nao)\n";
-        else            cout << "    Tong ngay: " << dayTotal << " kWh\n";
-    }
+    void printTree(int level, int mode) override { component->printTree(level, mode); }
+    void printDetailDaily() override             { component->printDetailDaily(); }
 };
 
-// -----------------------------------------------------
-// Decorator 1: Phong vang nguoi -> giam / tat thiet bi
-// -----------------------------------------------------
 class OccupancyLoadDecorator : public EnergyDecorator {
 public:
-    OccupancyLoadDecorator(IComponent* c, string devType) : EnergyDecorator(c, devType) {}
+    OccupancyLoadDecorator(IComponent* c, string t) : EnergyDecorator(c, t) {}
+};
 
-// -----------------------------------------------------
-// Decorator 2: Nhiet do cao -> dieu hoa ton dien hon
-// -----------------------------------------------------
 class TemperatureLoadDecorator : public EnergyDecorator {
 public:
-    TemperatureLoadDecorator(IComponent* c, string devType) : EnergyDecorator(c, devType) {}
+    TemperatureLoadDecorator(IComponent* c, string t) : EnergyDecorator(c, t) {}
+};
 
-// -----------------------------------------------------
-// Decorator 3: Du anh sang tu nhien -> den giam dien
-// -----------------------------------------------------
 class DaylightLoadDecorator : public EnergyDecorator {
 public:
-    DaylightLoadDecorator(IComponent* c, string devType) : EnergyDecorator(c, devType) {}
-
+    DaylightLoadDecorator(IComponent* c, string t) : EnergyDecorator(c, t) {}
+};
 // =====================================================
 // MYSQL CONTEXT
 // =====================================================
@@ -1479,6 +1417,7 @@ void startHttpServer() {
     // ------------------------------------------------------------
     // GET ROOMS
     // ------------------------------------------------------------
+    // ★ PATCH 5: trả thêm floor_id cho client filter theo tầng
     svr.Get("/api/rooms", [](const httplib::Request& req, httplib::Response& res) {
         try {
             DbContext db;
@@ -1487,7 +1426,7 @@ void startHttpServer() {
             string floorId = req.get_param_value("floor_id");
 
             string sql =
-                "SELECT r.id, r.room_code, r.name, f.name, r.capacity, r.energy_strategy "
+                "SELECT r.id, r.room_code, r.name, f.name, r.capacity, r.energy_strategy, r.floor_id "
                 "FROM rooms r "
                 "JOIN floors f ON r.floor_id = f.id "
                 "WHERE r.status = 'active' AND f.status = 'active' ";
@@ -1508,12 +1447,13 @@ void startHttpServer() {
 
             for (const auto& r : rows) {
                 json obj;
-                obj["id"] = safeGetInt(r[0]);
-                obj["code"] = r[1];
-                obj["name"] = r[2];
-                obj["floor"] = r[3];
+                obj["id"]       = safeGetInt(r[0]);
+                obj["code"]     = r[1];
+                obj["name"]     = r[2];
+                obj["floor"]    = r[3];
                 obj["capacity"] = safeGetInt(r[4]);
                 obj["strategy"] = r[5];
+                obj["floor_id"] = safeGetInt(r[6]);   // ★ MỚI
 
                 arr.push_back(obj);
             }
@@ -1842,6 +1782,37 @@ void startHttpServer() {
     // ------------------------------------------------------------
     // POST ROOM STATES
     // ------------------------------------------------------------
+    // ★ BỔ SUNG: GET room-states để HTML đọc được dữ liệu thật
+    svr.Get("/api/room-states", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            string roomIdStr = req.get_param_value("room_id");
+            if (roomIdStr.empty()) {
+                res.status = 400;
+                res.set_content(json{{"error","room_id required"}}.dump(), "application/json");
+                return;
+            }
+            DbContext db;
+            string sql =
+                "SELECT hour_of_day, people_count, temperature_c, humidity, light_lux "
+                "FROM room_states WHERE room_id = " + to_string(safeGetInt(roomIdStr)) +
+                " ORDER BY hour_of_day";
+            auto rows = executeQuery(db.get(), sql);
+            json arr = json::array();
+            for (const auto& r : rows) {
+                json o;
+                o["hour_of_day"]   = safeGetInt(r[0]);
+                o["people_count"]  = safeGetInt(r[1]);
+                o["temperature_c"] = safeGetDouble(r[2], 25.0);
+                o["humidity"]      = safeGetDouble(r[3], 50.0);
+                o["light_lux"]     = safeGetDouble(r[4], 300.0);
+                arr.push_back(o);
+            }
+            res.set_content(arr.dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
     svr.Post("/api/room-states", [](const httplib::Request& req, httplib::Response& res) {
         try {
             json body = parseJsonBody(req);
@@ -2000,6 +1971,10 @@ void startHttpServer() {
             json body = parseJsonBody(req);
 
             int buildingId = bodyInt(body, "buildingId", 1);
+            // ★ PATCH 6: nhận thêm floorId / roomId (client gửi lên, dùng để ghi log;
+            //           logic lọc thực sự do client xử lý — không ảnh hưởng kết quả)
+            int floorId = bodyInt(body, "floorId", 0);
+            int roomId  = bodyInt(body, "roomId", 0);
             string strategyKey = normalizeStrategyKey(bodyString(body, "strategy", "normal"));
 
             DbContext db;
@@ -2053,6 +2028,8 @@ void startHttpServer() {
             result["building_id"] = buildingId;
             result["building_name"] = building->getName();
             result["strategy"] = strategyKey;
+            result["floorId"]  = floorId;    // ★ PATCH 6: echo lại scope
+            result["roomId"]   = roomId;
 
             result["base_daily_kwh"] = baseDaily;
             result["base_weekly_kwh"] = baseWeekly;
