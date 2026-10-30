@@ -1,4 +1,3 @@
-// Main hoàn chỉnh
 #include <iostream>
 #include <vector>
 #include <string>
@@ -11,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <mysql.h>
 #include "httplib.h"
+
 
 using namespace std;
 using json = nlohmann::json;
@@ -425,11 +425,7 @@ public:
     virtual double getDailyKwh() = 0;
     virtual double getWeeklyKwh() = 0;
     virtual double getMonthlyKwh() = 0;
-    virtual double getKwhAtHour(int hour) = 0;
-
-    virtual void addChild(IComponent* child) {}
-
-    virtual void printTree(int level, int mode) = 0;
+void printTree(int level, int mode) = 0;
     virtual void printDetailDaily() {}
 
     virtual void setDayProfile(RoomDayProfile* profile) {}
@@ -485,14 +481,6 @@ public:
         double total = 0.0;
         for (int i = 0; i < (int)children.size(); i++) {
             total += children[i]->getMonthlyKwh();
-        }
-        return total;
-    }
-
-    double getKwhAtHour(int hour) override {
-        double total = 0.0;
-        for (int i = 0; i < (int)children.size(); i++) {
-            total += children[i]->getKwhAtHour(hour);
         }
         return total;
     }
@@ -704,6 +692,9 @@ public:
 
     string getKind() override {
         return "Device";
+    }     // Ham lay loai thiet bi (light, ac, fan...) de Decorator su dung
+    string getDeviceType() {
+        return getJsonString(attributes, "device_type", "");
     }
 
     void setDayProfile(RoomDayProfile* p) override {
@@ -733,36 +724,26 @@ public:
         return false;
     }
 
-    double getKwhAtHour(int hour) override {
+    double getDailyKwh() override {
+        double total = 0.0;
+
+        for (int hour = 0; hour < 24; hour++) {
+    double getMonthlyKwh() override {
+        return getWeeklyKwh() * 52.0 / 12.0;
+    }
+
+        double getKwhAtHour(int hour) override {
         if (!isOnAt(hour)) return 0.0;
 
         RoomState state = profile ? profile->getStateAt(hour) : RoomState();
         int cap = profile ? profile->capacity : 10;
 
-        double factor = strategy->calculateFactor(attributes, state, cap, hour);
+        double factor = strategy ? strategy->calculateFactor(attributes, state, cap, hour) : 1.0;
 
         return (ratedPower / 1000.0) * 1.0 * factor;
     }
 
-    double getDailyKwh() override {
-        double total = 0.0;
-
-        for (int hour = 0; hour < 24; hour++) {
-            total += getKwhAtHour(hour);
-        }
-
-        return total;
-    }
-
-    double getWeeklyKwh() override {
-        return getDailyKwh() * usageDaysPerWeek;
-    }
-
-    double getMonthlyKwh() override {
-        return getWeeklyKwh() * 52.0 / 12.0;
-    }
-
-    void printTree(int level, int mode) override {
+void printTree(int level, int mode) override {
         string indent(level * 2, ' ');
 
         double value;
@@ -822,6 +803,143 @@ public:
         }
     }
 };
+
+// =====================================================
+// DECORATOR PATTERN  (Dynamic Energy Loads)
+// -----------------------------------------------------
+// Y tuong: "bao boc" (wrap) mot Device bang cac lop Decorator.
+// Moi Decorator them 1 luat dieu chinh dien nang theo moi truong,
+// ma KHONG can sua lop Device goc.
+//
+//   Device  <-- OccupancyLoadDecorator <-- TemperatureLoadDecorator <-- DaylightLoadDecorator
+//
+// Day la da hinh (polymorphism): Room chi thay IComponent*,
+// no khong can biet ben trong la Device thuong hay Device da duoc bao boc.
+// =====================================================
+
+// Lop Decorator goc: giu con tro toi doi tuong bi bao boc
+class EnergyDecorator : public IComponent {
+protected:
+    IComponent* component;     // doi tuong bi bao boc
+    RoomDayProfile* profile;   // du lieu moi truong cua phong (giong Device)
+    string deviceType;         // loai thiet bi: light / ac / fan / ...
+
+public:
+    EnergyDecorator(IComponent* c, string devType) {
+        component = c;
+        deviceType = devType;
+        profile = nullptr;
+    }
+
+    // Decorator nam giu component -> phai huy no khi bi huy
+    virtual ~EnergyDecorator() {
+        delete component;
+    }
+
+    // 3 ham nay chi "hoi giup" component ben trong
+    int getId() override      { return component->getId(); }
+    string getName() override { return component->getName(); }
+    string getKind() override { return component->getKind(); }
+
+    // Nhan du lieu tu Room, roi truyen tiep xuong component ben trong
+    void setDayProfile(RoomDayProfile* p) override {
+        profile = p;
+        component->setDayProfile(p);
+    }
+
+    void setStrategy(IEnergyStrategy* s) override {
+        component->setStrategy(s);
+    }
+
+    // MAC DINH: tra ve ket qua cua component ben trong.
+    // Cac Decorator con se ghi de (override) ham nay de dieu chinh.
+    double getKwhAtHour(int hour) override {
+        return component->getKwhAtHour(hour);
+    }
+
+    // Tinh lai tong ngay theo tung gio DA duoc dieu chinh
+    double getDailyKwh() override {
+        double total = 0.0;
+        for (int hour = 0; hour < 24; hour++) {
+            total += getKwhAtHour(hour);
+        }
+        return total;
+    }
+
+    // Tuan / Thang: giu dung "so ngay hoat dong" cua Device,
+    // chi thay doi theo dung ty le ma Decorator da giam/tang trong ngay
+    double getWeeklyKwh() override {
+        double baseDaily = component->getDailyKwh();
+        if (baseDaily <= 0.0) return component->getWeeklyKwh();
+        double ratio = getDailyKwh() / baseDaily;
+        return component->getWeeklyKwh() * ratio;
+    }
+
+    double getMonthlyKwh() override {
+        double baseDaily = component->getDailyKwh();
+        if (baseDaily <= 0.0) return component->getMonthlyKwh();
+        double ratio = getDailyKwh() / baseDaily;
+        return component->getMonthlyKwh() * ratio;
+    }
+
+    double getKwhAtHour(int hour) override {
+        double total = 0.0;
+        for (size_t i = 0; i < children.size(); i++) {
+            total += children[i]->getKwhAtHour(hour);
+        }
+        return total;
+    }
+
+    void printTree(int level, int mode) override {
+        string indent(level * 2, ' ');
+        double value;
+        string label;
+        if (mode == 0)      { value = getDailyKwh();   label = "Daily"; }
+        else if (mode == 1) { value = getWeeklyKwh();  label = "Weekly"; }
+        else                { value = getMonthlyKwh(); label = "Monthly"; }
+
+        cout << fixed << setprecision(2);
+        cout << indent << "[" << getKind() << " +Decorator] " << getName()
+             << " - " << label << ": " << value << " kWh\n";
+    }
+
+    void printDetailDaily() override {
+        cout << fixed << setprecision(2);
+        cout << "\n[Chi tiet theo gio - Decorator] " << getName() << "\n";
+        double dayTotal = 0.0;
+        bool hasOnHour = false;
+        for (int hour = 0; hour < 24; hour++) {
+            double kwh = getKwhAtHour(hour);
+            if (kwh <= 0.0) continue;
+            hasOnHour = true;
+            dayTotal += kwh;
+            cout << "    " << setw(2) << hour << "h: " << kwh << " kWh\n";
+        }
+        if (!hasOnHour) cout << "    (Thiet bi khong ton dien gio nao)\n";
+        else            cout << "    Tong ngay: " << dayTotal << " kWh\n";
+    }
+};
+
+// -----------------------------------------------------
+// Decorator 1: Phong vang nguoi -> giam / tat thiet bi
+// -----------------------------------------------------
+class OccupancyLoadDecorator : public EnergyDecorator {
+public:
+    OccupancyLoadDecorator(IComponent* c, string devType) : EnergyDecorator(c, devType) {}
+
+// -----------------------------------------------------
+// Decorator 2: Nhiet do cao -> dieu hoa ton dien hon
+// -----------------------------------------------------
+class TemperatureLoadDecorator : public EnergyDecorator {
+public:
+    TemperatureLoadDecorator(IComponent* c, string devType) : EnergyDecorator(c, devType) {}
+
+// -----------------------------------------------------
+// Decorator 3: Du anh sang tu nhien -> den giam dien
+// -----------------------------------------------------
+class DaylightLoadDecorator : public EnergyDecorator {
+public:
+    DaylightLoadDecorator(IComponent* c, string devType) : EnergyDecorator(c, devType) {}
 
 // =====================================================
 // MYSQL CONTEXT
@@ -993,7 +1111,15 @@ Building* loadBuildingFromDB(DbContext& db, int buildingId) {
                     d[2]
                 );
 
-                room->addChild(device);
+                string devType = device->getDeviceType();
+
+                // DECORATOR PATTERN: bao boc Device bang 3 Decorator
+                IComponent* finalDevice = device;
+                finalDevice = new OccupancyLoadDecorator(finalDevice, devType);
+                finalDevice = new TemperatureLoadDecorator(finalDevice, devType);
+                finalDevice = new DaylightLoadDecorator(finalDevice, devType);
+
+                room->addChild(finalDevice);
             }
 
             room->applyProfileToChildren();
@@ -1147,728 +1273,42 @@ void listRooms(DbContext& db) {
     }
 }
 
-// =====================================================
-// SIMPLE CALCULATION MODULE
-// Used by HTTP API and CLI menu 8
-// =====================================================
-bool webDeviceIsOnAt(const json& attrs, int hour) {
-    hour = ((hour % 24) + 24) % 24;
 
-    if (attrs.contains("schedule") && attrs["schedule"].is_array()) {
-        for (const auto& slot : attrs["schedule"]) {
-            if (!slot.is_object()) continue;
-
-            int s = slot.value("start", 0);
-            int e = slot.value("end", 0);
-
-            if (s == e) continue;
-
-            if (s < e) {
-                if (hour >= s && hour < e) return true;
-            } else {
-                if (hour >= s || hour < e) return true;
-            }
-        }
-
-        return false;
-    }
-
-    double usage = getJsonNumber(attrs, "usage_hours_per_day", 24.0);
-
-    if (usage <= 0) return false;
-    if (usage >= 24) return true;
-
-    int start = ((int)getJsonNumber(attrs, "start_hour", 0.0) % 24 + 24) % 24;
-    int duration = (int)usage;
-
-    if (start + duration <= 24) {
-        return hour >= start && hour < start + duration;
-    }
-
-    return hour >= start || hour < (start + duration) % 24;
-}
-
-double webCalcSmartPower(
-    double ratedPower,
-    const json& attrs,
-    int hour,
-    int occupancy,
-    double temperatureC,
-    double humidity,
-    double lightLux,
-    string& noteOut
-) {
-    double power = ratedPower;
-    noteOut = "";
-
-    if (power <= 0) return 0.0;
-
-    string type = getJsonString(attrs, "device_type", "");
-
-    // 1. Occupancy
-    if (getJsonBool(attrs, "occupancy_sensitive", false)) {
-        if (occupancy <= 0) {
-            noteOut = "TAT (vang nguoi)";
-            return 0.0;
-        }
-
-        if (occupancy < 3) {
-            power *= 0.6;
-            noteOut = "Giam 40% (it nguoi)";
-        }
-    }
-
-    // 2. Daylight for lights
-    if (containsAny(type, {"light", "den", "đèn"})) {
-        if (getJsonBool(attrs, "daylight_sensitive", false)) {
-            double threshold = getJsonNumber(attrs, "daylight_threshold", 500.0);
-
-            if (lightLux >= threshold) {
-                noteOut = "TAT (du anh sang)";
-                return 0.0;
-            }
-
-            if (lightLux >= threshold * 0.5) {
-                power *= 0.5;
-                noteOut = "Giam 50% (sang vua)";
-            }
-        }
-    }
-
-    // 3. Temperature for AC
-    if (containsAny(type, {"ac", "air conditioner", "dieu hoa", "điều hòa", "may lanh"})) {
-        if (temperatureC > 25.0) {
-            double extra = (temperatureC - 25.0) * 0.05;
-            power *= (1.0 + extra);
-            noteOut = "Tang " + to_string((int)(extra * 100)) + "% (nong)";
-        } else if (temperatureC < 22.0) {
-            double reduction = (22.0 - temperatureC) * 0.02;
-            power *= (1.0 - reduction);
-            noteOut = "Giam (mat)";
-        }
-    }
-
-    // 4. Humidity
-    if (getJsonBool(attrs, "humidity_sensitive", false)) {
-        if (humidity > 60.0) {
-            power *= 1.0 + (humidity - 60.0) * 0.005;
-            noteOut = "Tang (am)";
-        }
-    }
-
-    // 5. Load factor
-    double loadFactor = getJsonNumber(attrs, "load_factor", 1.0);
-    loadFactor = max(0.0, min(1.0, loadFactor));
-    power *= loadFactor;
-
-    return max(0.0, power);
-}
-
-json runCalculationJson(
-    MYSQL* conn,
-    int buildingId,
-    int hour,
-    int occupancy,
-    double temperatureC,
-    double humidity,
-    double lightLux
-) {
-    hour = clampInt(hour, 0, 23);
-
-    string sql =
-        "SELECT d.id, d.device_name, d.attributes, r.name AS room_name, f.name AS floor_name "
-        "FROM devices d "
-        "JOIN rooms r ON d.room_id = r.id "
-        "JOIN floors f ON r.floor_id = f.id "
-        "WHERE f.building_id = " + to_string(buildingId) +
-        " AND d.status = 'active' "
-        " AND r.status = 'active' "
-        " AND f.status = 'active' "
-        " ORDER BY f.id, r.id, d.id";
-
-    if (mysql_query(conn, sql.c_str())) {
-        throw runtime_error(string("SQL error: ") + mysql_error(conn));
-    }
-
-    MYSQL_RES* res = mysql_store_result(conn);
-
-    json out;
-    out["buildingId"] = buildingId;
-    out["hour"] = hour;
-    out["occupancy"] = occupancy;
-    out["temperatureC"] = temperatureC;
-    out["humidity"] = humidity;
-    out["lightLux"] = lightLux;
-    out["devices"] = json::array();
-
-    if (!res) {
-        out["deviceCount"] = 0;
-        out["totalKwh"] = 0.0;
-        out["warning"] = "No result set.";
-        return out;
-    }
-
-    double totalKwh = 0.0;
-    int deviceCount = 0;
-
-    MYSQL_ROW row;
-
-    while ((row = mysql_fetch_row(res))) {
-        string devId = row[0] ? row[0] : "0";
-        string devName = row[1] ? row[1] : "";
-        string attrStr = row[2] ? row[2] : "{}";
-        string roomName = row[3] ? row[3] : "";
-        string floorName = row[4] ? row[4] : "";
-
-        json attrs = json::parse(attrStr, nullptr, false);
-
-        if (!attrs.is_object()) {
-            attrs = json::object();
-        }
-
-        double ratedPower = getJsonNumber(attrs, "rated_power_w", 0.0);
-
-        bool isOn = webDeviceIsOnAt(attrs, hour);
-        double smartPower = 0.0;
-        string note = "Ngoai lich hoat dong";
-
-        if (isOn) {
-            smartPower = webCalcSmartPower(
-                ratedPower,
-                attrs,
-                hour,
-                occupancy,
-                temperatureC,
-                humidity,
-                lightLux,
-                note
-            );
-
-            if (note.empty()) note = "Binh thuong";
-        }
-
-        double kwh = smartPower / 1000.0;
-
-        totalKwh += kwh;
-        deviceCount++;
-
-        json item;
-        item["deviceId"] = safeGetInt(devId);
-        item["floor"] = floorName;
-        item["room"] = roomName;
-        item["device"] = devName;
-        item["isOn"] = isOn;
-        item["ratedPowerW"] = ratedPower;
-        item["smartPowerW"] = smartPower;
-        item["energyKwh"] = kwh;
-        item["note"] = note;
-
-        out["devices"].push_back(item);
-    }
-
-    mysql_free_result(res);
-
-    out["deviceCount"] = deviceCount;
-    out["totalKwh"] = totalKwh;
-    out["estimatedDailyKwh"] = totalKwh * 24.0;
-    out["estimatedMonthlyKwh"] = totalKwh * 24.0 * 30.0;
-
-    return out;
-}
-
-void runCalculationSimulation(MYSQL* conn) {
-    int buildingId = getIntInput("Nhap ID Toa nha: ");
-    int hour = clampInt(getIntInput("Nhap gio can mo phong (0-23): "), 0, 23);
-    int occupancy = max(0, getIntInput("So nguoi trong phong: "));
-    double temp = getDoubleInput("Nhiet do phong (do C): ");
-    double humidity = getDoubleInput("Do am (%): ");
-    double lux = getDoubleInput("Anh sang tu nhien (Lux): ");
-
+// Helper functions for HTTP API
+inline json parseJsonBody(const httplib::Request& req) {
     try {
-        json result = runCalculationJson(
-            conn,
-            buildingId,
-            hour,
-            occupancy,
-            temp,
-            humidity,
-            lux
-        );
-
-        cout << "\n=== KET QUA CALCULATION tai " << hour << ":00 ===\n";
-        cout << string(100, '-') << "\n";
-
-        cout << left
-             << setw(25) << "Thiet bi"
-             << setw(15) << "Phong"
-             << setw(10) << "Trang thai"
-             << right
-             << setw(12) << "Dinh muc(W)"
-             << setw(14) << "Thuc te(W)"
-             << setw(12) << "kWh"
-             << "  | Ghi chu\n";
-
-        cout << string(100, '-') << "\n";
-
-        for (const auto& d : result["devices"]) {
-            cout << left
-                 << setw(25) << d.value("device", "").substr(0, 24)
-                 << setw(15) << d.value("room", "").substr(0, 14)
-                 << setw(10) << (d.value("isOn", false) ? "BAT" : "TAT")
-                 << right << fixed
-                 << setw(12) << setprecision(1) << d.value("ratedPowerW", 0.0)
-                 << setw(14) << setprecision(1) << d.value("smartPowerW", 0.0)
-                 << setw(12) << setprecision(3) << d.value("energyKwh", 0.0)
-                 << "  | " << d.value("note", "") << "\n";
-        }
-
-        cout << string(100, '-') << "\n";
-        cout << ">> Tong: " << result.value("deviceCount", 0)
-             << " thiet bi | "
-             << fixed << setprecision(3) << result.value("totalKwh", 0.0)
-             << " kWh trong 1 gio\n";
-    } catch (const exception& e) {
-        cout << ">> Loi: " << e.what() << "\n";
-    }
-}
-
-// =====================================================
-// SIMPLE DECORATOR PATTERN
-// Used by HTTP API and CLI menu 9
-// =====================================================
-struct DecorEnvironment {
-    int hour = 0;
-    int occupancy = 0;
-    double temperatureC = 25.0;
-    double humidity = 50.0;
-    double lightLux = 300.0;
-};
-
-class LoadComponent {
-public:
-    virtual ~LoadComponent() {}
-
-    virtual double getPower(const DecorEnvironment& env) = 0;
-};
-
-class BasicLoad : public LoadComponent {
-private:
-    double ratedPower;
-    json attrs;
-
-public:
-    BasicLoad(double power, const json& attributes)
-        : ratedPower(power), attrs(attributes) {}
-
-    double getPower(const DecorEnvironment& env) override {
-        if (!webDeviceIsOnAt(attrs, env.hour)) {
-            return 0.0;
-        }
-
-        return ratedPower;
-    }
-};
-
-class LoadDecorator : public LoadComponent {
-protected:
-    LoadComponent* component;
-
-public:
-    LoadDecorator(LoadComponent* c) : component(c) {}
-
-    ~LoadDecorator() override {
-        delete component;
-    }
-
-    double getPower(const DecorEnvironment& env) override {
-        return component->getPower(env);
-    }
-};
-
-class OccupancyDecorator : public LoadDecorator {
-private:
-    bool sensitive;
-
-public:
-    OccupancyDecorator(LoadComponent* c, bool isSensitive)
-        : LoadDecorator(c), sensitive(isSensitive) {}
-
-    double getPower(const DecorEnvironment& env) override {
-        double power = LoadDecorator::getPower(env);
-
-        if (!sensitive || power <= 0) {
-            return power;
-        }
-
-        if (env.occupancy <= 0) {
-            return 0.0;
-        }
-
-        if (env.occupancy < 3) {
-            power *= 0.6;
-        }
-
-        return power;
-    }
-};
-
-class DaylightDecorator : public LoadDecorator {
-private:
-    json attrs;
-
-public:
-    DaylightDecorator(LoadComponent* c, const json& attributes)
-        : LoadDecorator(c), attrs(attributes) {}
-
-    double getPower(const DecorEnvironment& env) override {
-        double power = LoadDecorator::getPower(env);
-
-        if (power <= 0) return power;
-
-        string type = getJsonString(attrs, "device_type", "");
-        bool sensitive = getJsonBool(attrs, "daylight_sensitive", false);
-
-        if (!sensitive || !containsAny(type, {"light", "den", "đèn"})) {
-            return power;
-        }
-
-        double threshold = getJsonNumber(attrs, "daylight_threshold", 500.0);
-
-        if (env.lightLux >= threshold) {
-            return 0.0;
-        }
-
-        if (env.lightLux >= threshold * 0.5) {
-            power *= 0.5;
-        }
-
-        return power;
-    }
-};
-
-class TemperatureDecorator : public LoadComponent {
-private:
-    LoadComponent* component;
-    json attrs;
-
-public:
-    TemperatureDecorator(LoadComponent* c, const json& attributes)
-        : component(c), attrs(attributes) {}
-
-    ~TemperatureDecorator() override {
-        delete component;
-    }
-
-    double getPower(const DecorEnvironment& env) override {
-        double power = component->getPower(env);
-
-        if (power <= 0) return power;
-
-        string type = getJsonString(attrs, "device_type", "");
-
-        if (!containsAny(type, {"ac", "air conditioner", "dieu hoa", "điều hòa", "may lanh"})) {
-            return power;
-        }
-
-        if (env.temperatureC > 25.0) {
-            double extra = (env.temperatureC - 25.0) * 0.05;
-            power *= (1.0 + extra);
-        } else if (env.temperatureC < 22.0) {
-            double reduction = (22.0 - env.temperatureC) * 0.02;
-            power *= (1.0 - reduction);
-        }
-
-        return power;
-    }
-};
-
-class HumidityDecorator : public LoadDecorator {
-private:
-    json attrs;
-
-public:
-    HumidityDecorator(LoadComponent* c, const json& attributes)
-        : LoadDecorator(c), attrs(attributes) {}
-
-    double getPower(const DecorEnvironment& env) override {
-        double power = LoadDecorator::getPower(env);
-
-        if (power <= 0) return power;
-
-        bool sensitive = getJsonBool(attrs, "humidity_sensitive", false);
-
-        if (!sensitive) return power;
-
-        if (env.humidity > 60.0) {
-            power *= 1.0 + (env.humidity - 60.0) * 0.005;
-        }
-
-        return power;
-    }
-};
-
-LoadComponent* buildDecoratedLoad(double ratedPower, const json& attrs) {
-    LoadComponent* load = new BasicLoad(ratedPower, attrs);
-
-    load = new OccupancyDecorator(
-        load,
-        getJsonBool(attrs, "occupancy_sensitive", false)
-    );
-
-    load = new DaylightDecorator(load, attrs);
-
-    // TemperatureDecorator is written without using LoadDecorator base
-    // to keep the example very simple, but still uses wrapping.
-    load = new TemperatureDecorator(load, attrs);
-
-    load = new HumidityDecorator(load, attrs);
-
-    return load;
-}
-
-json runDecoratorJson(
-    MYSQL* conn,
-    int buildingId,
-    const DecorEnvironment& env
-) {
-    string sql =
-        "SELECT d.id, d.device_name, d.attributes, r.name AS room_name, f.name AS floor_name "
-        "FROM devices d "
-        "JOIN rooms r ON d.room_id = r.id "
-        "JOIN floors f ON r.floor_id = f.id "
-        "WHERE f.building_id = " + to_string(buildingId) +
-        " AND d.status = 'active' "
-        " AND r.status = 'active' "
-        " AND f.status = 'active' "
-        " ORDER BY f.id, r.id, d.id";
-
-    if (mysql_query(conn, sql.c_str())) {
-        throw runtime_error(string("SQL error: ") + mysql_error(conn));
-    }
-
-    MYSQL_RES* res = mysql_store_result(conn);
-
-    json out;
-    out["buildingId"] = buildingId;
-    out["hour"] = env.hour;
-    out["occupancy"] = env.occupancy;
-    out["temperatureC"] = env.temperatureC;
-    out["humidity"] = env.humidity;
-    out["lightLux"] = env.lightLux;
-    out["devices"] = json::array();
-
-    if (!res) {
-        out["deviceCount"] = 0;
-        out["totalBasePowerW"] = 0.0;
-        out["totalFinalPowerW"] = 0.0;
-        out["warning"] = "No result set.";
-        return out;
-    }
-
-    double totalBasePowerW = 0.0;
-    double totalFinalPowerW = 0.0;
-    int deviceCount = 0;
-
-    MYSQL_ROW row;
-
-    while ((row = mysql_fetch_row(res))) {
-        string devId = row[0] ? row[0] : "0";
-        string devName = row[1] ? row[1] : "";
-        string attrStr = row[2] ? row[2] : "{}";
-        string roomName = row[3] ? row[3] : "";
-        string floorName = row[4] ? row[4] : "";
-
-        json attrs = json::parse(attrStr, nullptr, false);
-
-        if (!attrs.is_object()) {
-            attrs = json::object();
-        }
-
-        double ratedPower = getJsonNumber(attrs, "rated_power_w", 0.0);
-
-        double basePower = 0.0;
-
-        if (webDeviceIsOnAt(attrs, env.hour)) {
-            basePower = ratedPower;
-        }
-
-        LoadComponent* decorated = buildDecoratedLoad(ratedPower, attrs);
-        double finalPower = decorated->getPower(env);
-        delete decorated;
-
-        if (finalPower < 0) finalPower = 0;
-
-        totalBasePowerW += basePower;
-        totalFinalPowerW += finalPower;
-        deviceCount++;
-
-        json activeDecorators = json::array();
-
-        if (getJsonBool(attrs, "occupancy_sensitive", false)) {
-            activeDecorators.push_back("OccupancyDecorator");
-        }
-
-        string type = getJsonString(attrs, "device_type", "");
-
-        if (getJsonBool(attrs, "daylight_sensitive", false) &&
-            containsAny(type, {"light", "den", "đèn"})) {
-            activeDecorators.push_back("DaylightDecorator");
-        }
-
-        if (containsAny(type, {"ac", "air conditioner", "dieu hoa", "điều hòa", "may lanh"})) {
-            activeDecorators.push_back("TemperatureDecorator");
-        }
-
-        if (getJsonBool(attrs, "humidity_sensitive", false)) {
-            activeDecorators.push_back("HumidityDecorator");
-        }
-
-        json item;
-        item["deviceId"] = safeGetInt(devId);
-        item["floor"] = floorName;
-        item["room"] = roomName;
-        item["device"] = devName;
-        item["basePowerW"] = basePower;
-        item["finalPowerW"] = finalPower;
-        item["savedPowerW"] = basePower - finalPower;
-        item["energyKwh"] = finalPower / 1000.0;
-        item["activeDecorators"] = activeDecorators;
-
-        out["devices"].push_back(item);
-    }
-
-    mysql_free_result(res);
-
-    out["deviceCount"] = deviceCount;
-    out["totalBasePowerW"] = totalBasePowerW;
-    out["totalFinalPowerW"] = totalFinalPowerW;
-    out["totalSavedPowerW"] = totalBasePowerW - totalFinalPowerW;
-    out["totalBaseKwh"] = totalBasePowerW / 1000.0;
-    out["totalFinalKwh"] = totalFinalPowerW / 1000.0;
-    out["totalSavedKwh"] = (totalBasePowerW - totalFinalPowerW) / 1000.0;
-
-    return out;
-}
-
-void runDecoratorSimulation(MYSQL* conn) {
-    int buildingId = getIntInput("Nhap ID Toa nha: ");
-    int hour = clampInt(getIntInput("Nhap gio can mo phong (0-23): "), 0, 23);
-    int occupancy = max(0, getIntInput("So nguoi trong phong: "));
-    double temp = getDoubleInput("Nhiet do phong (do C): ");
-    double humidity = getDoubleInput("Do am (%): ");
-    double lux = getDoubleInput("Anh sang tu nhien (Lux): ");
-
-    DecorEnvironment env;
-    env.hour = hour;
-    env.occupancy = occupancy;
-    env.temperatureC = temp;
-    env.humidity = humidity;
-    env.lightLux = lux;
-
-    try {
-        json result = runDecoratorJson(conn, buildingId, env);
-
-        cout << "\n=== KET QUA DECORATOR tai " << hour << ":00 ===\n";
-        cout << string(100, '-') << "\n";
-
-        cout << left
-             << setw(25) << "Thiet bi"
-             << setw(15) << "Phong"
-             << right
-             << setw(12) << "Base(W)"
-             << setw(14) << "Final(W)"
-             << setw(14) << "Saved(W)"
-             << setw(12) << "kWh"
-             << "  | Decorators\n";
-
-        cout << string(100, '-') << "\n";
-
-        for (const auto& d : result["devices"]) {
-            string decorators = "";
-
-            if (d.contains("activeDecorators") && d["activeDecorators"].is_array()) {
-                for (const auto& name : d["activeDecorators"]) {
-                    if (!decorators.empty()) decorators += ", ";
-                    decorators += name.get<string>();
-                }
-            }
-
-            cout << left
-                 << setw(25) << d.value("device", "").substr(0, 24)
-                 << setw(15) << d.value("room", "").substr(0, 14)
-                 << right << fixed
-                 << setw(12) << setprecision(1) << d.value("basePowerW", 0.0)
-                 << setw(14) << setprecision(1) << d.value("finalPowerW", 0.0)
-                 << setw(14) << setprecision(1) << d.value("savedPowerW", 0.0)
-                 << setw(12) << setprecision(3) << d.value("energyKwh", 0.0)
-                 << "  | " << decorators << "\n";
-        }
-
-        cout << string(100, '-') << "\n";
-
-        cout << ">> Tong base: "
-             << fixed << setprecision(3) << result.value("totalBaseKwh", 0.0)
-             << " kWh | Tong final: "
-             << result.value("totalFinalKwh", 0.0)
-             << " kWh | Tiet kiem: "
-             << result.value("totalSavedKwh", 0.0)
-             << " kWh\n";
-    } catch (const exception& e) {
-        cout << ">> Loi: " << e.what() << "\n";
-    }
-}
-
-// =====================================================
-// HTTP JSON BODY HELPERS
-// =====================================================
-json parseJsonBody(const httplib::Request& req) {
-    if (req.body.empty()) {
+        if (req.body.empty()) return json::object();
+        return json::parse(req.body);
+    } catch (...) {
         return json::object();
     }
-
-    json body = json::parse(req.body, nullptr, false);
-
-    if (!body.is_object()) {
-        return json::object();
-    }
-
-    return body;
 }
 
-int bodyInt(const json& body, const string& key, int defaultValue) {
-    if (!body.contains(key)) return defaultValue;
-
+inline int bodyInt(const json& body, const string& key, int def) {
+    if (!body.contains(key)) return def;
     if (body[key].is_number_integer()) return body[key].get<int>();
-    if (body[key].is_number_float()) return (int)body[key].get<double>();
-
+    if (body[key].is_number()) return (int)body[key].get<double>();
     if (body[key].is_string()) {
-        return safeGetInt(body[key].get<string>());
+        try { return stoi(body[key].get<string>()); } catch (...) { return def; }
     }
-
-    return defaultValue;
+    return def;
 }
 
-double bodyDouble(const json& body, const string& key, double defaultValue) {
-    if (!body.contains(key)) return defaultValue;
-
+inline double bodyDouble(const json& body, const string& key, double def) {
+    if (!body.contains(key)) return def;
     if (body[key].is_number()) return body[key].get<double>();
-
     if (body[key].is_string()) {
-        return safeGetDouble(body[key].get<string>(), defaultValue);
+        try { return stod(body[key].get<string>()); } catch (...) { return def; }
     }
-
-    return defaultValue;
+    return def;
 }
 
-string bodyString(const json& body, const string& key, const string& defaultValue) {
-    if (!body.contains(key)) return defaultValue;
-
-    if (body[key].is_string()) {
-        return body[key].get<string>();
-    }
-
-    return defaultValue;
+inline string bodyString(const json& body, const string& key, const string& def) {
+    if (!body.contains(key)) return def;
+    if (body[key].is_string()) return body[key].get<string>();
+    return def;
 }
+
 
 // =====================================================
 // HTTP API SERVER
@@ -2318,6 +1758,87 @@ void startHttpServer() {
         }
     });
 
+
+    // ------------------------------------------------------------
+    // DELETE BUILDING
+    // ------------------------------------------------------------
+    svr.Delete(R"(/api/buildings/(\d+))", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            int id = stoi(req.matches[1]);
+            DbContext db;
+            string sql = "DELETE FROM buildings WHERE id = " + to_string(id);
+            if (mysql_query(db.get(), sql.c_str())) {
+                res.status = 500;
+                res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
+                return;
+            }
+            res.set_content(json{{"success", true}}.dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
+    // ------------------------------------------------------------
+    // DELETE FLOOR
+    // ------------------------------------------------------------
+    svr.Delete(R"(/api/floors/(\d+))", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            int id = stoi(req.matches[1]);
+            DbContext db;
+            string sql = "DELETE FROM floors WHERE id = " + to_string(id);
+            if (mysql_query(db.get(), sql.c_str())) {
+                res.status = 500;
+                res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
+                return;
+            }
+            res.set_content(json{{"success", true}}.dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
+    // ------------------------------------------------------------
+    // DELETE ROOM
+    // ------------------------------------------------------------
+    svr.Delete(R"(/api/rooms/(\d+))", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            int id = stoi(req.matches[1]);
+            DbContext db;
+            string sql = "DELETE FROM rooms WHERE id = " + to_string(id);
+            if (mysql_query(db.get(), sql.c_str())) {
+                res.status = 500;
+                res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
+                return;
+            }
+            res.set_content(json{{"success", true}}.dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
+    // ------------------------------------------------------------
+    // DELETE DEVICE
+    // ------------------------------------------------------------
+    svr.Delete(R"(/api/devices/(\d+))", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            int id = stoi(req.matches[1]);
+            DbContext db;
+            string sql = "DELETE FROM devices WHERE id = " + to_string(id);
+            if (mysql_query(db.get(), sql.c_str())) {
+                res.status = 500;
+                res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
+                return;
+            }
+            res.set_content(json{{"success", true}}.dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
     // ------------------------------------------------------------
     // POST ROOM STATES
     // ------------------------------------------------------------
@@ -2560,64 +2081,10 @@ void startHttpServer() {
     });
 
     // ------------------------------------------------------------
-    // POST CALCULATION SIMULATE
-    // ------------------------------------------------------------
-    svr.Post("/api/calculation/simulate", [](const httplib::Request& req, httplib::Response& res) {
-        try {
-            json body = parseJsonBody(req);
-
-            int buildingId = bodyInt(body, "buildingId", 1);
-            int hour = clampInt(bodyInt(body, "hour", 0), 0, 23);
-            int occupancy = max(0, bodyInt(body, "occupancy", 0));
-            double temp = bodyDouble(body, "temperatureC", 25.0);
-            double humidity = bodyDouble(body, "humidity", 50.0);
-            double lux = bodyDouble(body, "lightLux", 300.0);
-
-            DbContext db;
-
-            json result = runCalculationJson(
-                db.get(),
-                buildingId,
-                hour,
-                occupancy,
-                temp,
-                humidity,
-                lux
-            );
-
-            res.set_content(result.dump(), "application/json");
-        } catch (const exception& e) {
-            res.status = 500;
-            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
-        }
-    });
+    
 
     // ------------------------------------------------------------
-    // POST DECORATOR SIMULATE
-    // ------------------------------------------------------------
-    svr.Post("/api/decorator/simulate", [](const httplib::Request& req, httplib::Response& res) {
-        try {
-            json body = parseJsonBody(req);
-
-            DecorEnvironment env;
-            int buildingId = bodyInt(body, "buildingId", 1);
-
-            env.hour = clampInt(bodyInt(body, "hour", 0), 0, 23);
-            env.occupancy = max(0, bodyInt(body, "occupancy", 0));
-            env.temperatureC = bodyDouble(body, "temperatureC", 25.0);
-            env.humidity = bodyDouble(body, "humidity", 50.0);
-            env.lightLux = bodyDouble(body, "lightLux", 300.0);
-
-            DbContext db;
-
-            json result = runDecoratorJson(db.get(), buildingId, env);
-
-            res.set_content(result.dump(), "application/json");
-        } catch (const exception& e) {
-            res.status = 500;
-            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
-        }
-    });
+    
 
     cout << "\n========================================\n";
     cout << "   HTTP API SERVER STARTED\n";
@@ -2650,8 +2117,6 @@ int main() {
             cout << "5. Them Thiet bi moi\n";
             cout << "6. Cap nhat trang thai phong theo gio\n";
             cout << "7. Chon che do toi uu nang luong cho Phong\n";
-            cout << "8. Mo phong Calculation theo gio\n";
-            cout << "9. Mo phong Decorator (Smart Control + Environment)\n";
             cout << "10. Khoi dong HTTP API Server (Web Dashboard)\n";
             cout << "0. Thoat\n";
             cout << "----------------------------------------\n";
@@ -2768,10 +2233,52 @@ int main() {
 
                 json attrs;
 
-                string device_type = getStringInput("Loai thiet bi (light, ac, fan, projector...): ");
-
+                // Chon loai thiet bi tu danh sach co san
+                cout << "\n--- CHON LOAI THIET BI ---\n";
+                cout << "1. Light (Den)\n";
+                cout << "2. AC (Dieu hoa)\n";
+                cout << "3. Fan (Quat)\n";
+                cout << "4. Computer (May tinh)\n";
+                cout << "5. Projector (May chieu)\n";
+                cout << "6. Refrigerator (Tu lanh)\n";
+                cout << "7. TV (Tivi)\n";
+                cout << "8. Other (Khac)\n";
+                int typeChoice = getIntInput("Chon loai thiet bi: ");
+                
+                string device_type;
+                double defaultPower = 0;
+                switch(typeChoice) {
+                    case 1: device_type = "light"; defaultPower = 40; break;
+                    case 2: device_type = "ac"; defaultPower = 1200; break;
+                    case 3: device_type = "fan"; defaultPower = 75; break;
+                    case 4: device_type = "computer"; defaultPower = 300; break;
+                    case 5: device_type = "projector"; defaultPower = 250; break;
+                    case 6: device_type = "refrigerator"; defaultPower = 150; break;
+                    case 7: device_type = "tv"; defaultPower = 100; break;
+                    case 8: 
+                        device_type = getStringInput("Nhap ten loai thiet bi: "); 
+                        defaultPower = 100;
+                        break;
+                    default: 
+                        device_type = "other"; 
+                        defaultPower = 100;
+                        break;
+                }
+                
                 attrs["device_type"] = device_type;
-                attrs["rated_power_w"] = getDoubleInput("Cong suat (W): ");
+                
+                // Chon cong suat
+                cout << "\n--- CONG SUAT THIET BI ---\n";
+                cout << "Cong suat mac dinh goi y: " << defaultPower << " W\n";
+                cout << "1. Su dung cong suat mac dinh\n";
+                cout << "2. Nhap cong suat tuy chinh (W)\n";
+                int powerChoice = getIntInput("Chon: ");
+                if (powerChoice == 2) {
+                    attrs["rated_power_w"] = getDoubleInput("Nhap cong suat thiet bi (W): ");
+                } else {
+                    attrs["rated_power_w"] = defaultPower;
+                }
+                
                 attrs["usage_days_per_week"] = getDoubleInput("So ngay hoat dong moi tuan (0-7): ");
 
                 int tempSensitivity = clampInt(getIntInput("Muc nhay cam voi nhiet do (0-5): "), 0, 5);
@@ -2792,6 +2299,8 @@ int main() {
                 }
 
                 json schedule = json::array();
+                cout << "\n--- CAU HINH LICH HOAT DONG ---\n";
+                cout << "Ban co the them nhieu khoang thoi gian BAT khac nhau (cho phep ngat gio)\n";
 
                 while (true) {
                     cout << "\n--- Them khoang thoi gian thiet bi BAT ---\n";
@@ -2808,9 +2317,9 @@ int main() {
 
                     schedule.push_back(slot);
 
-                    cout << ">> Da them khoang " << startHour << "h -> " << endHour << "h\n";
+                    cout << ">> Da them khoang BAT: " << startHour << "h -> " << endHour << "h\n";
 
-                    string more = getStringInput("Them khoang bat khac? (y/n): ");
+                    string more = getStringInput("Them khoang BAT khac (co the tao khoang tat giua)? (y/n): ");
 
                     if (more != "y" && more != "Y") break;
                 }
@@ -2900,14 +2409,6 @@ int main() {
                 } else {
                     cout << ">> Cap nhat that bai.\n";
                 }
-            }
-
-            else if (choice == 8) {
-                runCalculationSimulation(db.get());
-            }
-
-            else if (choice == 9) {
-                runDecoratorSimulation(db.get());
             }
 
             else if (choice == 10) {
