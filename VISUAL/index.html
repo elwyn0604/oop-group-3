@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Energy Management System - C++ Composite & Strategy Visual Wrapper</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800">
 
-    <!-- Header -->
     <header class="bg-slate-900 text-white py-5 shadow-lg">
         <div class="container mx-auto px-6 flex justify-between items-center">
             <div>
@@ -24,10 +21,9 @@
         </div>
     </header>
 
-    <!-- Main Container -->
     <main class="container mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        <!-- Sidebar: Cấu hình đầu vào (Composite & Strategies) -->
+        <!-- Sidebar -->
         <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
             <h2 class="text-base font-bold text-slate-700 border-b pb-3 flex items-center gap-2">
                 🏢 Cấu Hình Hệ Thống (Composite)
@@ -41,20 +37,18 @@
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Tầng</label>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Tầng (tùy chọn)</label>
                 <select id="floorSelect" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                     <option value="">-- Chọn tầng --</option>
                 </select>
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Phòng</label>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Phòng (tùy chọn)</label>
                 <select id="roomSelect" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                     <option value="">-- Chọn phòng --</option>
                 </select>
             </div>
-
-            
 
             <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Đơn giá điện (VNĐ/kWh)</label>
@@ -69,18 +63,15 @@
                     <option value="peak">Strategy 3: Peak Shaving (Giảm giờ cao điểm 18h-21h)</option>
                     <option value="auto">Strategy 4: Auto Adaptive (Kết hợp người & nhiệt độ)</option>
                 </select>
+                <p class="text-[10px] text-slate-400 mt-1">Chọn Tòa nhà = cả tòa; + Tầng = cả tầng; + Phòng = riêng phòng</p>
             </div>
 
             <button onclick="runSimulation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
                 🚀 Chạy Mô Phỏng Strategy
             </button>
-
-            <button onclick="saveRoomStrategy()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                💾 Lưu Strategy cho Phòng
-            </button>
+            <!-- ĐÃ XÓA nút "Lưu Strategy cho Phòng" (dùng Menu 7 trong tab Thêm Dữ Liệu) -->
         </div>
 
-        <!-- Dashboard Visual & Charts Area -->
         <div class="lg:col-span-3 space-y-6">
             
             <!-- Metric Summary Cards -->
@@ -105,15 +96,12 @@
 
             <!-- Charts Section -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Bar Chart: Tiêu thụ theo phòng/tòa -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                     <h3 id="barChartTitle" class="text-sm font-bold text-slate-700 mb-3">📊 So sánh Tiêu thụ (Trước vs Sau)</h3>
                     <div class="relative h-60">
                         <canvas id="barChart"></canvas>
                     </div>
                 </div>
-
-                <!-- Doughnut Chart: Phân bổ tiết kiệm -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                     <h3 class="text-sm font-bold text-slate-700 mb-3">🥧 Tỷ trọng Tiết kiệm</h3>
                     <div class="relative h-60 flex justify-center">
@@ -122,7 +110,6 @@
                 </div>
             </div>
 
-            <!-- Line Chart: Load Profile 24h -->
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-sm font-bold text-slate-700 mb-3">📉 Đường cong Phụ tải 24 Giờ (Load Profile & Peak Shaving)</h3>
                 <div class="relative h-64">
@@ -131,7 +118,7 @@
             </div>
 
             <!-- ========================================== -->
-            <!-- ADVANCED C++ FEATURES (CRUD, Env, Calc)    -->
+            <!-- ADVANCED C++ FEATURES                       -->
             <!-- ========================================== -->
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-sm font-bold text-slate-700 mb-3">🛠️ Hệ Thống Đầy Đủ (Composite, CRUD, Decorator)</h3>
@@ -139,54 +126,45 @@
                     <button class="emsTab" onclick="emsGo(0,this)" style="background:none; border:none; border-bottom:3px solid #2563eb; color:#2563eb; font-size:18px; font-weight:700; padding:10px 4px; cursor:pointer;">📊 Báo Cáo</button>
                     <button class="emsTab" onclick="emsGo(1,this)" style="background:none; border:none; border-bottom:3px solid transparent; color:#475569; font-size:18px; font-weight:700; padding:10px 4px; cursor:pointer;">➕ Thêm Dữ Liệu</button>
                     <button class="emsTab" onclick="emsGo(2,this)" style="background:none; border:none; border-bottom:3px solid transparent; color:#475569; font-size:18px; font-weight:700; padding:10px 4px; cursor:pointer;">🌡️ Môi Trường</button>
-                    </div>
-                    <script>
-                    function emsFindPanel(m1, m2) {
+                </div>
+                <script>
+                function emsFindPanel(m1, m2) {
                     var best = null;
                     var divs = document.querySelectorAll('div');
                     for (var i = 0; i < divs.length; i++) {
                         if (divs[i].getAttribute('data-ems') === 'crud') { best = divs[i]; break; }
                         var t = divs[i].textContent;
                         if (t.indexOf(m1) !== -1 && t.indexOf(m2) !== -1) {
-                        if (best === null || t.length < best.textContent.length) best = divs[i];
+                            if (best === null || t.length < best.textContent.length) best = divs[i];
                         }
                     }
                     return best;
-                    }
-                    var emsPanels = [];
-                    function emsInit() {
+                }
+                var emsPanels = [];
+                function emsInit() {
                     emsPanels = [
                         document.getElementById('tab-report') || emsFindPanel('Xem báo cáo tiêu thụ', 'Báo Cáo Ngày'),
                         document.getElementById('tab-crud') || emsFindPanel('Tòa Nhà (Menu 2)', 'Thiết Bị (Menu 5)'),
                         document.getElementById('tab-env') || emsFindPanel('Cập nhật trạng thái phòng theo giờ', 'Nhiệt độ (°C)')
                     ];
                     emsGo(0, null);
-                    }
-                    function emsGo(i, btn) {
+                }
+                function emsGo(i, btn) {
                     for (var k = 0; k < emsPanels.length; k++) {
                         if (emsPanels[k]) emsPanels[k].style.display = (k === i) ? 'block' : 'none';
-                    }
-                    var btns = document.querySelectorAll('button');
-                    for (var b = 0; b < btns.length; b++) {
-                        if (btns[b].textContent.replace(/\s/g, '') === 'Lưu(Menu6)') {
-                        if (!(emsPanels[2] && emsPanels[2].contains(btns[b]))) {
-                            btns[b].style.display = (i === 2) ? 'block' : 'none';
-                        }
-                        }
                     }
                     var tabs = document.querySelectorAll('#emsTabBar .emsTab');
                     for (var t = 0; t < tabs.length; t++) {
                         tabs[t].style.color = (t === i) ? '#2563eb' : '#475569';
                         tabs[t].style.borderBottomColor = (t === i) ? '#2563eb' : 'transparent';
                     }
-                    }
-                    if (document.readyState === 'loading') {
+                }
+                if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', emsInit);
-                    } else {
+                } else {
                     emsInit();
-                    }
-                    </script>
-                
+                }
+                </script>
 
                 <!-- Tab 1: Report -->
                 <div id="tab-report" class="tab-content">
@@ -200,7 +178,6 @@
                 <!-- Tab 2: CRUD -->
                 <div id="tab-crud" class="tab-content hidden" data-ems="crud">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                        <!-- Building -->
                         <div class="border border-slate-200 p-3 rounded-lg">
                             <h4 class="font-bold text-slate-700 mb-2">Thêm Tòa Nhà (Menu 2)</h4>
                             <input id="in_b_code" placeholder="Mã tòa nhà (VD: B1)" class="w-full border rounded p-1.5 mb-1.5">
@@ -212,7 +189,6 @@
                             <input id="in_b_del" type="number" placeholder="Nhập Building ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
                             <pre id="out_b" class="mt-2 text-[10px] text-green-600"></pre>
                         </div>
-                        <!-- Floor -->
                         <div class="border border-slate-200 p-3 rounded-lg">
                             <h4 class="font-bold text-slate-700 mb-2">Thêm Tầng (Menu 3)</h4>
                             <input id="in_f_b" type="number" placeholder="ID Tòa nhà" class="w-full border rounded p-1.5 mb-1.5">
@@ -225,7 +201,6 @@
                             <input id="in_f_del" type="number" placeholder="Nhập Floor ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
                             <pre id="out_f" class="mt-2 text-[10px] text-green-600"></pre>
                         </div>
-                        <!-- Room -->
                         <div class="border border-slate-200 p-3 rounded-lg">
                             <h4 class="font-bold text-slate-700 mb-2">Thêm Phòng (Menu 4)</h4>
                             <input id="in_r_f" type="number" placeholder="ID Tầng" class="w-full border rounded p-1.5 mb-1.5">
@@ -240,7 +215,6 @@
                             <input id="in_r_del" type="number" placeholder="Nhập Room ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
                             <pre id="out_r" class="mt-2 text-[10px] text-green-600"></pre>
                         </div>
-                        <!-- Device -->
                         <div class="border border-slate-200 p-3 rounded-lg">
                             <h4 class="font-bold text-slate-700 mb-2">Thêm Thiết Bị (Menu 5)</h4>
                             <input id="in_d_r" type="number" placeholder="ID Phòng" class="w-full border rounded p-1.5 mb-1.5">
@@ -263,7 +237,7 @@
                                 <button onclick="setDefaultPower()" class="px-2 bg-slate-200 rounded text-[10px]">Mặc định</button>
                             </div>
                             <div class="mb-1.5">
-                                <label class="text-[10px] text-slate-600 font-medium">Lịch hoạt động (có thể thêm nhiều khoảng - cho phép ngắt giờ)</label>
+                                <label class="text-[10px] text-slate-600 font-medium">Lịch hoạt động (có thể thêm nhiều khoảng)</label>
                                 <div id="scheduleList" class="space-y-1 mb-1">
                                     <div class="flex gap-1">
                                         <input type="number" class="sch-start flex-1 border rounded p-1" placeholder="Bắt đầu (h)" value="7" min="0" max="23">
@@ -280,7 +254,6 @@
                             <pre id="out_d" class="mt-2 text-[10px] text-green-600"></pre>
                         </div>
                     </div>
-                    <!-- Room State Update -->
                     <div class="mt-4 border border-slate-200 p-3 rounded-lg">
                         <h4 class="font-bold text-slate-700 mb-2">Cập nhật trạng thái phòng theo giờ (Menu 6)</h4>
                         <div class="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
@@ -294,7 +267,6 @@
                         <button onclick="updateRoomState()" class="mt-2 bg-emerald-500 text-white py-1.5 px-4 rounded hover:bg-emerald-600">Cập nhật trạng thái</button>
                         <pre id="out_rs" class="mt-2 text-[10px] text-green-600"></pre>
                     </div>
-                    <!-- Strategy Selection -->
                     <div class="mt-4 border border-slate-200 p-3 rounded-lg">
                         <h4 class="font-bold text-slate-700 mb-2">Chọn chế độ tối ưu năng lượng cho Phòng (Menu 7)</h4>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
@@ -344,12 +316,8 @@
                     <pre id="out_s" class="mt-3 text-xs bg-slate-50 p-3 rounded-lg overflow-auto max-h-40 font-mono text-slate-600 border border-slate-200">Kết quả sẽ hiện ở đây...</pre>
                 </div>
 
-                <!-- Tab 4: Adv Simulations -->
-                
+            </div>
 
-
-
-            <!-- Log Section -->
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-sm font-bold text-slate-700 mb-3">📜 System Log</h3>
                 <pre id="logOutput" class="text-xs bg-slate-50 p-3 rounded-lg overflow-auto max-h-40 font-mono text-slate-600">System initialized...
@@ -359,7 +327,6 @@
         </div>
     </main>
 
-    <!-- JavaScript Logic xử lý tính toán và vẽ biểu đồ -->
     <script>
         let barChartInstance = null;
         let pieChartInstance = null;
@@ -387,9 +354,7 @@
         async function apiCall(url, options = {}) {
             try {
                 const response = await fetch(url, options);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 return await response.json();
             } catch (error) {
                 log(`API Error: ${error.message}`);
@@ -413,18 +378,14 @@
                 const buildings = await apiCall('/api/buildings');
                 const select = document.getElementById('buildingSelect');
                 select.innerHTML = '<option value="">-- Chọn tòa nhà --</option>';
-                
                 buildings.forEach(b => {
                     const option = document.createElement('option');
                     option.value = b.id;
                     option.textContent = `${b.name} (#${b.id})`;
                     select.appendChild(option);
                 });
-                
                 log(`Loaded ${buildings.length} buildings`);
-            } catch (error) {
-                log('Failed to load buildings: ' + error.message);
-            }
+            } catch (error) { log('Failed to load buildings: ' + error.message); }
         }
 
         async function loadFloors(buildingId) {
@@ -453,118 +414,323 @@
                     option.value = r.id;
                     option.textContent = `${r.name} (#${r.id})`;
                     option.dataset.strategy = r.strategy || 'normal';
+                    option.dataset.floorId = r.floor_id || '';
+                    option.dataset.capacity = r.capacity || 10;
                     select.appendChild(option);
                 });
             } catch (error) { log('Failed to load rooms: ' + error.message); }
         }
 
         async function loadRoomDevices(roomId) {
-            if (!roomId) { document.getElementById('avgPower').value = '0'; return; }
+            if (!roomId) return;
             try {
-                const devices = await apiCall(`/api/devices?room_id=${roomId}`);
-                let totalPower = 0;
-                devices.forEach(d => {
-                    if (d.attributes && d.attributes.rated_power_w) totalPower += parseFloat(d.attributes.rated_power_w);
-                });
-                document.getElementById('avgPower').value = (totalPower / 1000).toFixed(2);
+                await apiCall(`/api/devices?room_id=${roomId}`);
             } catch (error) { log('Failed to load devices: ' + error.message); }
+        }
+
+        // ==========================================================
+        // HIERARCHICAL SIMULATION (Building / Floor / Room)
+        // ==========================================================
+
+        // Port nguyên logic C++ Strategy Pattern sang JS
+        function isDeviceOnAt(schedule, hour) {
+            if (!Array.isArray(schedule)) return false;
+            hour = ((hour % 24) + 24) % 24;
+            for (const slot of schedule) {
+                const s = parseInt(slot.start);
+                const e = parseInt(slot.end);
+                if (isNaN(s) || isNaN(e) || s === e) continue;
+                if (s < e) { if (hour >= s && hour < e) return true; }
+                else       { if (hour >= s || hour < e) return true; }
+            }
+            return false;
+        }
+
+        function computeStrategyFactor(attrs, capacity, hour, strategy) {
+            if (strategy === 'normal') return 1.0;
+
+            const os = Math.min(5, Math.max(0, parseInt(attrs.occupancy_sensitivity) || 0));
+            const ts = Math.min(5, Math.max(0, parseInt(attrs.temp_sensitivity) || 0));
+            // Default room state (nếu chưa có room_states): people=0, temp=25°C
+            const people = 0;
+            const temp = 25;
+            const occ = capacity > 0 ? Math.min(1, Math.max(0, people / capacity)) : 1.0;
+
+            if (strategy === 'eco') {
+                if (os <= 0) return 1.0;
+                let reduction = 0;
+                if (occ <= 0)       reduction = os * 0.12;
+                else if (occ < 0.3) reduction = os * 0.08;
+                else if (occ < 0.6) reduction = os * 0.04;
+                return Math.max(0.2, 1 - reduction);
+            }
+
+            if (strategy === 'peak') {
+                if (hour < 18 || hour >= 21) return 1.0;
+                const baseReduction = 0.30;
+                const tsKeep = ts * 0.04;
+                return 1 - Math.max(0.05, baseReduction - tsKeep);
+            }
+
+            if (strategy === 'auto') {
+                let factor = 1.0;
+                if (os > 0) {
+                    let reduction = 0;
+                    if (occ <= 0)       reduction = os * 0.12;
+                    else if (occ < 0.3) reduction = os * 0.08;
+                    else if (occ < 0.6) reduction = os * 0.04;
+                    factor *= (1 - reduction);
+                }
+                if (ts > 0) {
+                    let addition = 0;
+                    if (temp >= 35)      addition = ts * 0.07;
+                    else if (temp >= 30) addition = ts * 0.05;
+                    else if (temp <= 22) addition = -ts * 0.02;
+                    factor *= (1 + addition);
+                }
+                return Math.max(0.1, factor);
+            }
+
+            return 1.0;
+        }
+
+        async function computeSimulationClientSide(buildingId, floorId, roomId, strategy) {
+            const allRooms = await apiCall(`/api/rooms?building_id=${buildingId}`);
+
+            let rooms;
+            if (roomId) {
+                rooms = allRooms.filter(r => r.id === parseInt(roomId));
+            } else if (floorId) {
+                rooms = allRooms.filter(r => parseInt(r.floor_id) === parseInt(floorId));
+                if (rooms.length === 0 && allRooms.length > 0) {
+                    log('⚠️ Không lọc được theo floor_id (API không trả field này). Dùng toàn tòa.');
+                    rooms = allRooms;
+                }
+            } else {
+                rooms = allRooms;
+            }
+
+            const baseHourly = new Array(24).fill(0);
+            const optHourly  = new Array(24).fill(0);
+            let baseMonthly = 0;
+            let optMonthly  = 0;
+
+            for (const room of rooms) {
+                const capacity = room.capacity || 10;
+                let devices;
+                try {
+                    devices = await apiCall(`/api/devices?room_id=${room.id}`);
+                } catch (e) {
+                    log(`Bỏ qua room ${room.id}: ${e.message}`);
+                    continue;
+                }
+
+                for (const device of devices) {
+                    const attrs = device.attributes || {};
+                    const ratedPowerW = parseFloat(attrs.rated_power_w) || 0;
+                    const usageDays = Math.min(7, Math.max(0, parseFloat(attrs.usage_days_per_week) || 7));
+                    const schedule = attrs.schedule || [];
+
+                    let dailyBase = 0;
+                    let dailyOpt  = 0;
+
+                    for (let h = 0; h < 24; h++) {
+                        if (!isDeviceOnAt(schedule, h)) continue;
+                        const baseKwh = (ratedPowerW / 1000) * 1.0;
+                        const factor  = computeStrategyFactor(attrs, capacity, h, strategy);
+                        const optKwh  = baseKwh * factor;
+
+                        baseHourly[h] += baseKwh;
+                        optHourly[h]  += optKwh;
+                        dailyBase += baseKwh;
+                        dailyOpt  += optKwh;
+                    }
+
+                    baseMonthly += dailyBase * usageDays * 52 / 12;
+                    optMonthly  += dailyOpt  * usageDays * 52 / 12;
+                }
+            }
+
+            return { baseHourly, optHourly, baseMonthly, optMonthly, roomCount: rooms.length };
         }
 
         async function runSimulation() {
             const buildingId = document.getElementById('buildingSelect').value;
-            const strategy = document.getElementById('strategy').value;
+            const floorId    = document.getElementById('floorSelect').value;
+            const roomId     = document.getElementById('roomSelect').value;
+            const strategy   = document.getElementById('strategy').value;
+            const tariff     = parseFloat(document.getElementById('tariff').value) || 3000;
+
             if (!buildingId) { alert('Vui lòng chọn tòa nhà trước!'); return; }
-            
+
+            const bName = document.getElementById('buildingSelect').selectedOptions[0]?.textContent || '';
+            const fName = floorId ? (document.getElementById('floorSelect').selectedOptions[0]?.textContent || '') : null;
+            const rName = roomId  ? (document.getElementById('roomSelect').selectedOptions[0]?.textContent || '') : null;
+
+            let scopeLabel = bName;
+            if (roomId)       scopeLabel += ' › ' + fName + ' › ' + rName;
+            else if (floorId) scopeLabel += ' › ' + fName;
+
             try {
-                const result = await apiCall('/api/simulate', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ buildingId: parseInt(buildingId), strategy })
-                });
-                
-                const tariff = parseFloat(document.getElementById('tariff').value) || 3000;
-                const baseEnergy = result.base_monthly_kwh || 0;
-                const optEnergy = result.opt_monthly_kwh || result.monthly_kwh || 0;
-                const savedEnergy = result.saved_kwh || result.saved_monthly_kwh || (baseEnergy - optEnergy);
-                const savedCost = savedEnergy * tariff;
-                
-                document.getElementById('lblBaseEnergy').innerText = Math.round(baseEnergy).toLocaleString() + " kWh";
-                document.getElementById('lblOptEnergy').innerText = Math.round(optEnergy).toLocaleString() + " kWh";
+                log(`▶ Mô phỏng: ${scopeLabel} | Strategy: ${strategy}`);
+
+                // Thử gọi API trước (nếu backend hỗ trợ phân cấp + strategy)
+                let usedAPI = false;
+                let result = null;
+                try {
+                    result = await apiCall('/api/simulate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            buildingId: parseInt(buildingId),
+                            floorId:  floorId ? parseInt(floorId) : null,
+                            roomId:   roomId  ? parseInt(roomId)  : null,
+                            strategy
+                        })
+                    });
+                    const baseAPI = result.base_monthly_kwh || 0;
+                    const optAPI  = result.opt_monthly_kwh  || result.monthly_kwh || 0;
+                    // Nếu API KHÔNG áp strategy (base == opt dù strategy != normal) → bỏ qua API
+                    if (strategy !== 'normal' && Math.abs(baseAPI - optAPI) < 0.01) {
+                        log('⚠️ API trả về base == opt (strategy chưa áp dụng). Chuyển sang tính client-side...');
+                    } else {
+                        usedAPI = true;
+                    }
+                } catch (e) {
+                    log('API /api/simulate không khả dụng, dùng tính client-side...');
+                }
+
+                let baseEnergy, optEnergy, baseHourly, optHourly;
+
+                if (usedAPI && result) {
+                    baseEnergy = result.base_monthly_kwh || 0;
+                    optEnergy  = result.opt_monthly_kwh  || result.monthly_kwh || 0;
+                    baseHourly = result.base_hourly;
+                    optHourly  = result.opt_hourly;
+                } else {
+                    const computed = await computeSimulationClientSide(buildingId, floorId, roomId, strategy);
+                    baseEnergy = computed.baseMonthly;
+                    optEnergy  = computed.optMonthly;
+                    baseHourly = computed.baseHourly;
+                    optHourly  = computed.optHourly;
+                    log(`✔ Client-side: ${computed.roomCount} phòng được tính.`);
+                }
+
+                const savedEnergy = Math.max(0, baseEnergy - optEnergy);
+                const savedCost   = savedEnergy * tariff;
+
+                document.getElementById('lblBaseEnergy').innerText  = Math.round(baseEnergy).toLocaleString()  + " kWh";
+                document.getElementById('lblOptEnergy').innerText   = Math.round(optEnergy).toLocaleString()   + " kWh";
                 document.getElementById('lblSavedEnergy').innerText = Math.round(savedEnergy).toLocaleString() + " kWh";
-                document.getElementById('lblSavedCost').innerText = Math.round(savedCost).toLocaleString() + " VNĐ";
-                
-                renderCharts(`${result.building_name || 'Tòa nhà'} (${strategy})`, baseEnergy, optEnergy, savedCost, strategy, result.base_hourly, result.opt_hourly);
-                log('Simulation completed successfully');
-            } catch (error) { alert('Lỗi khi chạy mô phỏng: ' + error.message); }
+                document.getElementById('lblSavedCost').innerText   = Math.round(savedCost).toLocaleString()   + " VNĐ";
+
+                const title = `${scopeLabel} [${strategy}]`;
+                document.getElementById('barChartTitle').textContent = '📊 So sánh Tiêu thụ (Trước vs Sau) — ' + title;
+
+                renderCharts(title, baseEnergy, optEnergy, savedEnergy, strategy, baseHourly, optHourly);
+                log(`✔ Hoàn tất: base=${baseEnergy.toFixed(2)} kWh, opt=${optEnergy.toFixed(2)} kWh, saved=${savedEnergy.toFixed(2)} kWh`);
+            } catch (error) {
+                alert('Lỗi khi chạy mô phỏng: ' + error.message);
+                log('Simulation error: ' + error.message);
+            }
         }
 
-        async function saveRoomStrategy() {
-            const roomId = document.getElementById('roomSelect').value;
-            const strategy = document.getElementById('strategy').value;
-            if (!roomId) { alert('Vui lòng chọn phòng trước!'); return; }
-            try {
-                await apiCall('/api/strategy/room', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ roomId: parseInt(roomId), strategy })
-                });
-                alert('Đã lưu strategy thành công!');
-            } catch (error) { alert('Lỗi khi lưu strategy: ' + error.message); }
-        }
-
-        function renderCharts(label, baseData, optData, pieDataVal, strategyType, baseHourly, optHourly) {
+        function renderCharts(label, baseEnergy, optEnergy, savedEnergy, strategyType, baseHourly, optHourly) {
+            // === BAR CHART ===
             const ctxBar = document.getElementById('barChart').getContext('2d');
             if (barChartInstance) barChartInstance.destroy();
             barChartInstance = new Chart(ctxBar, {
-                type: 'bar', data: { labels: [label], datasets: [
-                    { label: 'Ban đầu', data: [baseData], backgroundColor: '#94a3b8', borderRadius: 6 },
-                    { label: 'Sau tối ưu', data: [optData], backgroundColor: '#2563eb', borderRadius: 6 }
-                ]}, options: { responsive: true, maintainAspectRatio: false }
+                type: 'bar',
+                data: {
+                    labels: [label],
+                    datasets: [
+                        { label: 'Ban đầu',     data: [baseEnergy], backgroundColor: '#94a3b8', borderRadius: 6 },
+                        { label: 'Sau tối ưu',  data: [optEnergy],  backgroundColor: '#2563eb', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'kWh / tháng' } } },
+                    plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + ' kWh' } } }
+                }
             });
 
+            // === PIE CHART (saved kWh vs remaining kWh — KHÔNG trộn đơn vị) ===
+            const savedKwh     = Math.max(0, savedEnergy);
+            const remainingKwh = Math.max(0, optEnergy);
             const ctxPie = document.getElementById('pieChart').getContext('2d');
             if (pieChartInstance) pieChartInstance.destroy();
             pieChartInstance = new Chart(ctxPie, {
-                type: 'doughnut', data: { labels: ['Tiết kiệm', 'Còn lại'], datasets: [{
-                    data: [pieDataVal > 0 ? pieDataVal : 1, baseData > 0 ? baseData - pieDataVal / 3000 : 100],
-                    backgroundColor: ['#2563eb', '#e2e8f0']
-                }]}, options: { responsive: true, maintainAspectRatio: false }
+                type: 'doughnut',
+                data: {
+                    labels: ['Tiết kiệm (kWh)', 'Còn lại (kWh)'],
+                    datasets: [{
+                        data: [savedKwh, remainingKwh],
+                        backgroundColor: ['#10b981', '#e2e8f0'],
+                        borderColor: ['#059669', '#cbd5e1'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: c => {
+                                    const total = savedKwh + remainingKwh;
+                                    const pct = total > 0 ? (c.parsed / total * 100).toFixed(1) : '0.0';
+                                    return `${c.label}: ${c.parsed.toFixed(2)} kWh (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
             });
+
+            // === LINE CHART (dùng dữ liệu hourly thật) ===
+            const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+            const baseLoad = Array.isArray(baseHourly) && baseHourly.length === 24 ? baseHourly : new Array(24).fill(0);
+            const optLoad  = Array.isArray(optHourly)  && optHourly.length  === 24 ? optHourly  : new Array(24).fill(0);
 
             const ctxLine = document.getElementById('lineChart').getContext('2d');
-            let hours = Array.from({length: 24}, (_, i) => `${i}:00`);
-            let baseLoad = baseHourly || hours.map((_, h) => 2 + 3 * Math.sin((h - 6) * Math.PI / 12));
-            let optLoad = optHourly || baseLoad.map((val, h) => {
-                if (strategyType === 'normal') return val;
-                if (strategyType === 'eco') return val * 0.85;
-                if (strategyType === 'peak' && h >= 18 && h <= 21) return val * 0.55;
-                if (strategyType === 'peak') return val * 0.90;
-                if (strategyType === 'auto') return val * 0.70;
-                return val;
-            });
-
             if (lineChartInstance) lineChartInstance.destroy();
             lineChartInstance = new Chart(ctxLine, {
-                type: 'line', data: { labels: hours, datasets: [
-                    { label: 'Phụ tải Gốc', data: baseLoad, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', tension: 0.3, fill: true },
-                    { label: 'Phụ tải Áp dụng Strategy', data: optLoad, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: true }
-                ]}, options: { responsive: true, maintainAspectRatio: false }
+                type: 'line',
+                data: {
+                    labels: hours,
+                    datasets: [
+                        { label: 'Phụ tải Gốc (Normal)', data: baseLoad, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', tension: 0.3, fill: true },
+                        { label: 'Phụ tải ' + strategyType, data: optLoad, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', tension: 0.3, fill: true }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'kWh / giờ' } },
+                        x: { title: { display: true, text: 'Giờ trong ngày' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                afterBody: (items) => {
+                                    if (items.length >= 2) {
+                                        const b = items[0].parsed.y, o = items[1].parsed.y;
+                                        if (b > 0) return '↓ Giảm: ' + ((b - o) / b * 100).toFixed(1) + '%';
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
 
         // ==========================================
-        // ADVANCED TABS LOGIC
+        // OTHER FUNCTIONS (giữ nguyên)
         // ==========================================
-        function showTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-                el.classList.add('text-slate-500');
-            });
-            document.getElementById(tabId).classList.remove('hidden');
-            const btn = document.getElementById('btn-' + tabId);
-            btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-            btn.classList.remove('text-slate-500');
-        }
-
         async function fetchReport(type) {
             const buildingId = document.getElementById('buildingSelect').value;
             if (!buildingId) { alert('Chọn tòa nhà ở sidebar trước!'); return; }
@@ -585,7 +751,6 @@
                 document.getElementById('out_b').textContent = "OK: ID " + res.id; loadBuildings();
             } catch (e) { document.getElementById('out_b').textContent = "Lỗi: " + e.message; }
         }
-
         async function addFloor() {
             try {
                 const res = await apiCall('/api/floors', { method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -593,7 +758,6 @@
                 document.getElementById('out_f').textContent = "OK: ID " + res.id;
             } catch (e) { document.getElementById('out_f').textContent = "Lỗi: " + e.message; }
         }
-
         async function addRoom() {
             try {
                 const res = await apiCall('/api/rooms', { method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -605,21 +769,15 @@
         function updateDeviceForm() {
             const type = document.getElementById('in_d_type').value;
             const otherInput = document.getElementById('in_d_type_other');
-            if (type === 'other') {
-                otherInput.classList.remove('hidden');
-            } else {
-                otherInput.classList.add('hidden');
-            }
+            if (type === 'other') otherInput.classList.remove('hidden');
+            else otherInput.classList.add('hidden');
             setDefaultPower();
         }
-
         function setDefaultPower() {
             const type = document.getElementById('in_d_type').value;
-            const powerInput = document.getElementById('in_d_power');
             const defaults = {light: 40, ac: 1200, fan: 75, computer: 300, projector: 250, refrigerator: 150, tv: 100, other: 100};
-            powerInput.value = defaults[type] || 100;
+            document.getElementById('in_d_power').value = defaults[type] || 100;
         }
-
         function addScheduleSlot() {
             const list = document.getElementById('scheduleList');
             const div = document.createElement('div');
@@ -627,26 +785,19 @@
             div.innerHTML = '<input type="number" class="sch-start flex-1 border rounded p-1" placeholder="BĐ" min="0" max="23"><input type="number" class="sch-end flex-1 border rounded p-1" placeholder="KT" min="0" max="23"><button onclick="this.parentElement.remove()" class="px-2 bg-red-100 text-red-600 rounded">×</button>';
             list.appendChild(div);
         }
-
         async function addDevice() {
             try {
                 let deviceType = document.getElementById('in_d_type').value;
-                if (deviceType === 'other') {
-                    deviceType = document.getElementById('in_d_type_other').value || 'other';
-                }
+                if (deviceType === 'other') deviceType = document.getElementById('in_d_type_other').value || 'other';
                 const schedule = [];
                 document.querySelectorAll('#scheduleList > div').forEach(div => {
-                    const starts = div.querySelectorAll('.sch-start');
-                    const ends = div.querySelectorAll('.sch-end');
-                    if (starts[0] && ends[0]) {
-                        schedule.push({start: parseInt(starts[0].value), end: parseInt(ends[0].value)});
-                    }
+                    const s = div.querySelector('.sch-start'), e = div.querySelector('.sch-end');
+                    if (s && e) schedule.push({ start: parseInt(s.value), end: parseInt(e.value) });
                 });
                 const attrs = {
                     device_type: deviceType,
                     rated_power_w: parseFloat(document.getElementById('in_d_power').value),
-                    schedule: schedule,
-                    usage_days_per_week: 7
+                    schedule, usage_days_per_week: 7
                 };
                 if (deviceType === 'light') { attrs.daylight_sensitive = true; attrs.daylight_threshold = 500; }
                 const res = await apiCall('/api/devices', { method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -656,33 +807,28 @@
         }
 
         async function deleteBuilding() {
-            try {
-                const id = document.getElementById('in_b_del').value;
+            try { const id = document.getElementById('in_b_del').value;
                 if (!id) { alert('Nhập Building ID'); return; }
                 await apiCall('/api/buildings/' + id, { method: 'DELETE' });
-                document.getElementById('out_b').textContent = "Đã xóa Building ID " + id;
-                loadBuildings();
+                document.getElementById('out_b').textContent = "Đã xóa Building ID " + id; loadBuildings();
             } catch (e) { document.getElementById('out_b').textContent = "Lỗi: " + e.message; }
         }
         async function deleteFloor() {
-            try {
-                const id = document.getElementById('in_f_del').value;
+            try { const id = document.getElementById('in_f_del').value;
                 if (!id) { alert('Nhập Floor ID'); return; }
                 await apiCall('/api/floors/' + id, { method: 'DELETE' });
                 document.getElementById('out_f').textContent = "Đã xóa Floor ID " + id;
             } catch (e) { document.getElementById('out_f').textContent = "Lỗi: " + e.message; }
         }
         async function deleteRoom() {
-            try {
-                const id = document.getElementById('in_r_del').value;
+            try { const id = document.getElementById('in_r_del').value;
                 if (!id) { alert('Nhập Room ID'); return; }
                 await apiCall('/api/rooms/' + id, { method: 'DELETE' });
                 document.getElementById('out_r').textContent = "Đã xóa Room ID " + id;
             } catch (e) { document.getElementById('out_r').textContent = "Lỗi: " + e.message; }
         }
         async function deleteDevice() {
-            try {
-                const id = document.getElementById('in_d_del').value;
+            try { const id = document.getElementById('in_d_del').value;
                 if (!id) { alert('Nhập Device ID'); return; }
                 await apiCall('/api/devices/' + id, { method: 'DELETE' });
                 document.getElementById('out_d').textContent = "Đã xóa Device ID " + id;
@@ -691,36 +837,18 @@
 
         async function updateRoomState() {
             try {
-                const res = await apiCall('/api/room-states', { method: 'POST', headers: {'Content-Type': 'application/json'},
+                await apiCall('/api/room-states', { method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ room_id: parseInt(document.getElementById('in_rs_room').value), start_hour: parseInt(document.getElementById('in_rs_start').value), end_hour: parseInt(document.getElementById('in_rs_end').value), people_count: parseInt(document.getElementById('in_rs_people').value), temperature_c: parseFloat(document.getElementById('in_rs_temp').value), humidity: parseFloat(document.getElementById('in_rs_hum').value) }) });
                 document.getElementById('out_rs').textContent = "Đã cập nhật thành công";
             } catch (e) { document.getElementById('out_rs').textContent = "Lỗi: " + e.message; }
         }
-
         async function setRoomStrategy() {
             try {
-                const res = await apiCall('/api/strategy/room', { method: 'POST', headers: {'Content-Type': 'application/json'},
+                await apiCall('/api/strategy/room', { method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ roomId: parseInt(document.getElementById('in_st_room').value), strategy: document.getElementById('in_st_strategy').value }) });
                 document.getElementById('out_st').textContent = "Đã áp dụng chế độ: " + document.getElementById('in_st_strategy').value;
             } catch (e) { document.getElementById('out_st').textContent = "Lỗi: " + e.message; }
         }
-
-        async function updateRoomState6() {
-            try {
-                const res = await apiCall('/api/room-states', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ room_id: parseInt(document.getElementById('in_st6_room').value), start_hour: parseInt(document.getElementById('in_st6_start').value), end_hour: parseInt(document.getElementById('in_st6_end').value), people_count: parseInt(document.getElementById('in_st6_people').value), temperature_c: parseFloat(document.getElementById('in_st6_temp').value), humidity: parseFloat(document.getElementById('in_st6_hum').value) }) });
-                document.getElementById('out_st6').textContent = "Đã cập nhật trạng thái thành công";
-            } catch (e) { document.getElementById('out_st6').textContent = "Lỗi: " + e.message; }
-        }
-
-        async function setRoomStrategy7() {
-            try {
-                const res = await apiCall('/api/strategy/room', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ roomId: parseInt(document.getElementById('in_st7_room').value), strategy: document.getElementById('in_st7_strategy').value }) });
-                document.getElementById('out_st7').textContent = "Đã áp dụng chế độ: " + document.getElementById('in_st7_strategy').value;
-            } catch (e) { document.getElementById('out_st7').textContent = "Lỗi: " + e.message; }
-        }
-
         async function saveRoomState() {
             try {
                 const res = await apiCall('/api/room-states', { method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -729,22 +857,20 @@
             } catch (e) { document.getElementById('out_s').textContent = "Lỗi: " + e.message; }
         }
 
-
         // Event listeners
         document.getElementById('buildingSelect').addEventListener('change', async (e) => {
             const buildingId = e.target.value;
             if (buildingId) await Promise.all([loadFloors(buildingId), loadRooms(buildingId)]);
         });
-
         document.getElementById('roomSelect').addEventListener('change', (e) => {
             loadRoomDevices(e.target.value);
-            const selectedOption = e.target.options[e.target.selectedIndex];
-            if (selectedOption && selectedOption.dataset.strategy) document.getElementById('strategy').value = selectedOption.dataset.strategy;
+            const opt = e.target.options[e.target.selectedIndex];
+            if (opt && opt.dataset.strategy) document.getElementById('strategy').value = opt.dataset.strategy;
         });
 
         window.onload = async () => {
             log('Initializing dashboard...');
-            if (await checkHealth()) { await loadBuildings(); log('Dashboard ready'); } 
+            if (await checkHealth()) { await loadBuildings(); log('Dashboard ready'); }
             else { log('Dashboard running in offline mode'); }
         };
     </script>
