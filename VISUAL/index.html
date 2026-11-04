@@ -1,965 +1,698 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energy Management System - C++ Composite & Strategy Visual Wrapper</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Group 3 Project | Quản lý năng lượng</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--ink:#182b3a;--muted:#718393;--line:#e2e9ed;--paper:#fff;--bg:#edf2f3;--teal:#087f78;--teal2:#18a69a;--blue:#376c91;--lime:#d7f0db;--shadow:0 16px 44px rgba(26,48,62,.08)}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 67% 5%,#f8fbf9 0,#edf2f3 54%,#e8eef0 100%);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif;font-size:14px;min-height:100vh}
+    button,input,select{font:inherit}button{cursor:pointer}header{height:78px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.8);border-bottom:1px solid #dfe8e9;backdrop-filter:blur(12px);position:sticky;top:0;z-index:20}
+    .brand{display:flex;align-items:center;gap:12px}.brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#0b8c80,#55b393);color:white;display:grid;place-items:center;font-size:20px;box-shadow:0 8px 18px #168e7a33}.brand h1{font-size:17px;letter-spacing:.01em;margin:0;font-weight:750}.brand p{margin:3px 0 0;color:var(--muted);font-size:11px}.head-right{display:flex;align-items:center;gap:14px}.today-card{display:flex;gap:10px;align-items:center;padding:8px 13px;background:#f4f8f7;border:1px solid var(--line);border-radius:12px}.today-icon{font-size:18px}.today-card small{display:block;color:var(--muted);font-size:10px;margin-bottom:2px}.today-card strong{font-size:12px}.status{color:#14775f;background:#e8f6ee;border:1px solid #cde9d8;border-radius:30px;padding:8px 12px;font-size:11px;font-weight:700}.status.offline{color:#b64949;background:#fff0ef;border-color:#f3d3d0}
+    .layout{max-width:1540px;margin:0 auto;padding:26px 28px 54px;display:grid;grid-template-columns:286px minmax(0,1fr);gap:24px;align-items:start}.sidebar,.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}.sidebar{padding:20px;position:sticky;top:98px}.section-title{display:flex;align-items:center;gap:10px;margin:0 0 17px;padding-bottom:15px;border-bottom:1px solid var(--line);font-size:14px}.section-title .gear{width:30px;height:30px;background:#e6f4ef;color:var(--teal);border-radius:9px;display:grid;place-items:center}.field{margin:13px 0}.field label,.form-label{display:block;font-weight:700;color:#526776;font-size:11px;margin-bottom:6px}.field select,.field input,.input{width:100%;border:1px solid #dbe4e8;border-radius:10px;padding:10px 11px;background:#fbfcfc;color:#263c4b;outline:none}.field select:focus,.field input:focus,.input:focus{border-color:#53aaa0;box-shadow:0 0 0 3px #36a69a1a}.hint{font-size:10px;color:#80919a;line-height:1.45;margin:7px 0}.divider{height:1px;background:var(--line);margin:17px 0}.primary{width:100%;border:0;border-radius:11px;padding:12px 14px;background:linear-gradient(135deg,#087f78,#169d8e);color:white;font-weight:750;box-shadow:0 8px 16px #0d8c7825;transition:.18s}.primary:hover{transform:translateY(-1px);filter:brightness(1.04)}.secondary{border:1px solid #dce6e8;background:#f7faf9;color:#37505b;border-radius:9px;padding:9px 12px;font-weight:650}.secondary:hover{background:#eaf4f1}.danger{border:1px solid #f0d3d0;background:#fff6f5;color:#a63c39;border-radius:9px;padding:8px 11px;font-weight:650}.select-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.strategy-select{color:#0c7772;font-weight:700}
+    .workspace{min-width:0}.intro{display:flex;align-items:flex-end;justify-content:space-between;margin:0 2px 17px}.intro h2{font-size:20px;margin:0 0 5px;letter-spacing:-.02em}.intro p{margin:0;color:var(--muted);font-size:12px}.date-range{font-size:11px;color:#607782;background:#f5f8f7;padding:8px 11px;border-radius:9px;border:1px solid var(--line)}
+    .stage{min-height:470px;position:relative;overflow:hidden;border-radius:23px;border:1px solid #dce7e6;background:linear-gradient(145deg,#f9fcfa,#e7f0ef 70%,#dce9e7);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}.stage::before,.stage::after{content:"";position:absolute;border-radius:50%;pointer-events:none}.stage::before{width:500px;height:500px;background:radial-gradient(circle,#ffffffa8 0,#ffffff00 70%);top:-210px;left:calc(50% - 250px)}.stage::after{width:620px;height:100px;background:radial-gradient(ellipse,#516e7140 0,#516e7100 68%);bottom:28px;left:calc(50% - 310px)}.stage-caption{position:absolute;top:22px;left:24px;z-index:2}.stage-caption span{font-size:10px;color:#64817f;text-transform:uppercase;letter-spacing:.15em;font-weight:800}.stage-caption strong{display:block;font-size:14px;margin-top:5px}.drag-tip{position:absolute;bottom:20px;color:#748a8e;font-size:10px;letter-spacing:.02em;z-index:3}
+    .cube-wrap{width:280px;height:300px;position:relative;z-index:2;perspective:900px;perspective-origin:50% 48%;touch-action:none;cursor:grab}
+    .cube-wrap.dragging{cursor:grabbing}
+    .cube-model{position:absolute;width:210px;height:210px;left:35px;top:42px;transform-style:preserve-3d}
+    .cube-face{position:absolute;left:0;top:0;width:210px;height:210px;backface-visibility:hidden;border:2px solid #effff6b8;box-shadow:inset 0 0 34px #ffffff28,inset 0 -18px 38px #003b371f}
+    .cube-front{transform:translateZ(105px);background:linear-gradient(145deg,#71e1c8 0%,#25b39f 48%,#087c77 100%)}
+    .cube-back{transform:rotateY(180deg) translateZ(105px);background:linear-gradient(145deg,#5ecbb7 0%,#168d87 56%,#075b69 100%)}
+    .cube-right{transform:rotateY(90deg) translateZ(105px);background:linear-gradient(145deg,#32a99e 0%,#08757a 54%,#064f62 100%)}
+    .cube-left{transform:rotateY(-90deg) translateZ(105px);background:linear-gradient(145deg,#9ae6c4 0%,#41b99d 54%,#12827c 100%)}
+    .cube-top{transform:rotateX(90deg) translateZ(105px);background:linear-gradient(145deg,#e1f8d7 0%,#a9e7c5 55%,#61c5aa 100%)}
+    .cube-bottom{transform:rotateX(-90deg) translateZ(105px);background:linear-gradient(145deg,#167c80 0%,#0b5b6c 58%,#163f5a 100%)}
+    .orbit-tabs{position:absolute;inset:0;z-index:5;pointer-events:none}.orbit-tabs button{pointer-events:auto;position:absolute;border:1px solid #d2e2df;background:#ffffffed;color:#31555a;padding:10px 13px;border-radius:13px;box-shadow:0 8px 20px #233f4512;font-size:11px;font-weight:750;transition:.18s}.orbit-tabs button:hover{transform:translateY(-2px);border-color:#6bb6aa;color:var(--teal)}.orbit-tabs .tab-savings{left:5%;top:36%}.orbit-tabs .tab-compare{right:5%;top:29%}.orbit-tabs .tab-share{right:6%;top:52%}.orbit-tabs .tab-load{left:8%;top:64%}.orbit-tabs .secondary-tabs{position:absolute;right:23px;top:22px;display:flex;gap:8px;pointer-events:none}.orbit-tabs .secondary-tabs button{position:static;pointer-events:auto;background:#f5fbf8}.group-close{position:absolute;z-index:7;right:18px;bottom:18px;pointer-events:auto;border:0;background:#fff;color:#819297;border-radius:50%;width:28px;height:28px;box-shadow:0 4px 12px #203a4014;font-size:16px}.group-close.period-close{right:53px}.period-panel{position:absolute;top:17px;left:50%;transform:translateX(-50%);z-index:6;display:none;align-items:center;gap:6px;padding:5px;background:#ffffffd9;border:1px solid #dce7e5;border-radius:12px;box-shadow:0 6px 18px #23444a12}.period-panel.show{display:flex}.period-btn{border:0;color:#617780;background:transparent;border-radius:8px;padding:8px 13px;font-size:11px;font-weight:750}.period-btn.active{background:#e4f4ed;color:#08766e}
+    .content-area{margin-top:17px;display:grid;grid-template-columns:1fr;gap:15px}.content-panel{display:none;padding:20px}.content-panel.show{display:block;animation:appear .22s ease-out}@keyframes appear{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}.panel-heading h3{margin:0;font-size:15px}.panel-heading p{margin:5px 0 0;color:var(--muted);font-size:11px}.close-panel{border:0;width:27px;height:27px;border-radius:8px;background:#f1f5f4;color:#74848a;font-size:17px}.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}.metric{background:#f7faf9;border:1px solid #e3ece9;border-radius:13px;padding:15px;min-height:93px}.metric small{color:#758994;font-size:10px;font-weight:700}.metric strong{display:block;font-size:17px;margin-top:11px;letter-spacing:-.03em}.metric:nth-child(2) strong{color:#397e9b}.metric:nth-child(3) strong{color:#16816f}.metric:last-child{background:linear-gradient(135deg,#087f78,#2b9f83);color:white;border:0}.metric:last-child small{color:#d6f2e7}.metric:last-child strong{color:white}.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.chart-card{border:1px solid var(--line);border-radius:13px;padding:15px 16px;background:#fff;min-width:0}.chart-card h4{font-size:12px;margin:0 0 12px}.chart-card.wide{grid-column:1/-1}.chart-box{height:230px;position:relative}.chart-card.wide .chart-box{height:260px}.empty-chart{display:none;color:#82939a;font-size:12px;text-align:center;padding-top:80px}.report-box{white-space:pre-wrap;background:#f7faf9;border:1px solid var(--line);padding:14px;border-radius:11px;min-height:120px;max-height:360px;overflow:auto;color:#3c5661;font:12px/1.65 ui-monospace,Menlo,monospace}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.form-card{border:1px solid var(--line);border-radius:13px;padding:15px;background:#fff}.form-card h4{margin:0 0 13px;font-size:12px}.form-card .input,.form-card select{margin-bottom:9px}.form-actions{display:flex;gap:8px}.form-actions button{flex:1}.form-message{min-height:15px;margin:8px 0 0;font-size:10px;color:#16816f}.small-note{font-size:10px;color:#80919a;line-height:1.45;margin:7px 0 10px}.device-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.device-grid .wide{grid-column:1/-1}.schedule-list{display:grid;gap:9px}.schedule-row{padding:10px;border:1px solid #e2ebea;border-radius:11px;background:#f9fbfa}.schedule-top{display:grid;grid-template-columns:1fr 1fr 26px;gap:6px;align-items:center;margin-bottom:7px}.schedule-details{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.schedule-details input{width:100%;padding:7px;border:1px solid #dce6e8;border-radius:8px;font-size:11px}.schedule-row label{font-size:9px;color:#71858b}.remove-slot{border:0;background:#fff0ef;color:#a7514d;border-radius:7px;height:27px}.calendar-checks{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 10px}.date-choice{display:flex;align-items:center;gap:5px;padding:6px 8px;background:#f3f8f6;border:1px solid #e0ebe7;border-radius:8px;color:#526b70;font-size:10px}.date-choice input{accent-color:#16877d}.calendar-month{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.calendar-month .date-choice{justify-content:center;padding:7px 2px}.date-choice.off{opacity:.42}.log-panel{margin-top:14px;padding:14px 17px}.log-panel h3{font-size:11px;color:#607680;margin:0 0 9px}.log-output{height:85px;overflow:auto;white-space:pre-wrap;font:10px/1.55 ui-monospace,Menlo,monospace;color:#6f8289}.hidden{display:none!important}
+    .calendar-heading,.calendar-empty{font-size:9px;text-align:center;color:#87999d;padding:3px}
+    .origin-note{max-width:1484px;margin:14px auto 0;padding:12px 16px;border:1px solid #eed49a;border-radius:12px;background:#fff7e5;color:#765719;font-size:12px;line-height:1.5}.origin-note a{color:#087f78;font-weight:750;margin-left:5px}
+    @media(max-width:1050px){.layout{grid-template-columns:250px minmax(0,1fr);padding:20px 16px;gap:16px}.stage{min-height:420px}.metric-grid{grid-template-columns:repeat(2,1fr)}.orbit-tabs .tab-savings{left:2%}.orbit-tabs .tab-compare{right:2%}.orbit-tabs .tab-share{right:2%}.orbit-tabs .tab-load{left:3%}}
+    @media(max-width:760px){header{padding:0 15px;height:70px}.status{display:none}.layout{display:block;padding:14px}.sidebar{position:static;margin-bottom:14px}.select-row{grid-template-columns:1fr}.intro{align-items:flex-start;gap:10px;flex-direction:column}.stage{min-height:430px}.cube-wrap{transform:scale(.85)}.orbit-tabs button{padding:8px 9px;font-size:10px}.orbit-tabs .tab-savings{left:2%;top:28%}.orbit-tabs .tab-compare{right:2%;top:22%}.orbit-tabs .tab-share{right:2%;top:64%}.orbit-tabs .tab-load{left:2%;top:71%}.orbit-tabs .secondary-tabs{left:12px;right:auto;top:12px;flex-wrap:wrap}.period-panel{top:57px}.charts-grid,.form-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr 1fr}.chart-card.wide{grid-column:auto}.today-card{padding:7px 8px}.brand h1{font-size:14px}}
+
+    .theme-toggle{border:1px solid var(--line);background:#f5f8f7;color:#405a62;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:700;white-space:nowrap}
+    .theme-toggle:hover{border-color:#69ada1;color:var(--teal)}
+    .schedule-apply{margin-top:10px;padding-top:9px;border-top:1px solid #e2ebea}
+    .schedule-apply .sch-period{width:100%;border:1px solid #dbe4e8;border-radius:9px;padding:8px 9px;background:#fff;color:#263c4b;font-size:11px}
+    .schedule-apply .slot-date-picker{margin-top:6px}
+    :root[data-theme="dark"]{color-scheme:dark;--ink:#e4eef0;--muted:#a0b2b7;--line:#31464d;--paper:#17262c;--bg:#101a1e;--shadow:0 16px 44px rgba(0,0,0,.25)}
+    :root[data-theme="dark"] body{background:radial-gradient(ellipse at 67% 5%,#1b2a2e 0,#121e22 54%,#0d171b 100%);color:var(--ink)}
+    :root[data-theme="dark"] header{background:rgba(18,29,34,.92);border-color:var(--line)}
+    :root[data-theme="dark"] .sidebar,:root[data-theme="dark"] .card,:root[data-theme="dark"] .form-card,:root[data-theme="dark"] .chart-card{background:var(--paper);border-color:var(--line)}
+    :root[data-theme="dark"] .stage{background:linear-gradient(145deg,#243538,#1b2b30 70%,#152328);border-color:#31464d}
+    :root[data-theme="dark"] .stage::before{background:radial-gradient(circle,#ffffff12 0,#ffffff00 70%)}
+    :root[data-theme="dark"] .stage::after{background:radial-gradient(ellipse,#00000060 0,#00000000 68%)}
+    :root[data-theme="dark"] .today-card,:root[data-theme="dark"] .date-range,:root[data-theme="dark"] .metric:not(:last-child),:root[data-theme="dark"] .schedule-row,:root[data-theme="dark"] .date-choice{background:#1e3036;border-color:var(--line);color:var(--ink)}
+    :root[data-theme="dark"] .field select,:root[data-theme="dark"] .field input,:root[data-theme="dark"] .input,:root[data-theme="dark"] .schedule-details input,:root[data-theme="dark"] .schedule-apply .sch-period{background:#132126;border-color:#354b52;color:var(--ink)}
+    :root[data-theme="dark"] .field label,:root[data-theme="dark"] .form-label,:root[data-theme="dark"] .schedule-row label{color:#b2c2c5}
+    :root[data-theme="dark"] .secondary,:root[data-theme="dark"] .theme-toggle{background:#22343a;border-color:#40575e;color:#d9e7e9}
+    :root[data-theme="dark"] .secondary:hover,:root[data-theme="dark"] .theme-toggle:hover{background:#2a4146}
+    :root[data-theme="dark"] .orbit-tabs button,:root[data-theme="dark"] .period-panel,:root[data-theme="dark"] .group-close,:root[data-theme="dark"] .close-panel{background:#203238;border-color:#40565d;color:#e0ecee}
+    :root[data-theme="dark"] .orbit-tabs .secondary-tabs button{background:#20383a}
+    :root[data-theme="dark"] .panel-heading p,:root[data-theme="dark"] .hint,:root[data-theme="dark"] .small-note,:root[data-theme="dark"] .calendar-heading,:root[data-theme="dark"] .calendar-empty{color:#9db0b5}
+    :root[data-theme="dark"] .report-box{background:#132126;border-color:var(--line);color:#d4e2e4}
+    :root[data-theme="dark"] .log-output{color:#afc1c4}
+    :root[data-theme="dark"] .status{color:#9be0bf;background:#18352d;border-color:#2e5b4b}
+    :root[data-theme="dark"] .status.offline{color:#ffb9b5;background:#3a2425;border-color:#684041}
+    :root[data-theme="dark"] .origin-note{background:#352d1d;border-color:#67532d;color:#eed9a1}
+    :root[data-theme="dark"] .danger{background:#3b2627;border-color:#684041;color:#ffb9b5}
+    :root[data-theme="dark"] .remove-slot{background:#3b2627;color:#ffb9b5}
+  </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800">
+<body>
+  <header>
+    <div class="brand"><div class="brand-mark">⌂</div><div><h1>Group 3 Project</h1><p>HỆ THỐNG QUẢN LÝ VÀ TỐI ƯU NĂNG LƯỢNG</p></div></div>
+    <div class="head-right"><button type="button" class="theme-toggle" id="themeToggle" aria-label="Bật chế độ tối" aria-pressed="false">🌙 Tối</button><div class="today-card"><span class="today-icon">▦</span><div><small>HÔM NAY</small><strong id="todayLabel">—</strong></div></div><div id="statusBadge" class="status">Đang kết nối…</div></div>
+  </header>
+  <div class="origin-note hidden" id="fileOriginNotice">Trang đang được mở trực tiếp từ tệp. Hãy chạy <strong>main.cpp</strong>, chọn <strong>10</strong>, rồi mở bảng điều khiển qua<a href="http://localhost:8080">http://localhost:8080</a>.</div>
 
-    <header class="bg-slate-900 text-white py-5 shadow-lg">
-        <div class="container mx-auto px-6 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold tracking-wide">⚡ Energy Simulation & Strategy Dashboard</h1>
-                <p class="text-slate-400 text-xs mt-0.5">Mô hình C++ Composite (Building → Floor → Room) kết hợp 4 Strategy Tối Ưu Năng Lượng</p>
-            </div>
-            <div id="statusBadge" class="bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-emerald-400">
-                ● Checking...
-            </div>
+  <main class="layout">
+    <aside class="sidebar">
+      <h2 class="section-title"><span class="gear">⚙</span> Cấu hình hệ thống</h2>
+      <div class="field"><label for="buildingSelect">Tòa nhà</label><select id="buildingSelect"><option value="">Chọn tòa nhà</option></select></div>
+      <div class="field"><label for="floorSelect">Tầng (tùy chọn)</label><select id="floorSelect"><option value="">Toàn bộ tòa nhà</option></select></div>
+      <div class="field"><label for="roomSelect">Phòng (tùy chọn)</label><select id="roomSelect"><option value="">Toàn bộ tầng</option></select></div>
+      <div class="field"><label for="strategy">Chiến lược mô phỏng</label><select id="strategy" class="strategy-select"><option value="normal">Normal Mode</option><option value="eco" selected>Eco Saving</option><option value="peak">Peak Shaving</option><option value="auto">Auto Adaptive</option></select><p class="hint">Khi mô phỏng cả tòa nhà, chiến lược riêng đã lưu cho tầng hoặc phòng sẽ được giữ nguyên.</p></div>
+      <div class="field"><label for="tariff">Đơn giá điện (VNĐ/kWh)</label><input id="tariff" type="number" min="0" step="100" value="3000"></div>
+      <div class="divider"></div><button class="primary" id="runSimulationBtn">Chạy mô phỏng Strategy</button>
+      <p class="hint" style="text-align:center;margin-top:10px">Chọn phạm vi, thời gian và chiến lược trước khi chạy.</p>
+    </aside>
+
+    <section class="workspace">
+      <div class="intro"><div><h2>Bảng điều khiển năng lượng</h2><p>Chạm vào mô hình để mở các công cụ phân tích và quản lý.</p></div><div class="date-range" id="dateRangeLabel">Hôm nay</div></div>
+      <div class="stage" id="buildingStage">
+        <div class="stage-caption"><strong id="buildingCaption">Tổng quan tòa nhà</strong></div>
+        <div class="cube-wrap" id="cubeWrap" aria-label="Khối lập phương có thể xoay">
+          <div class="cube-model" id="cubeModel">
+            <div class="cube-face cube-front"></div>
+            <div class="cube-face cube-back"></div>
+            <div class="cube-face cube-right"></div>
+            <div class="cube-face cube-left"></div>
+            <div class="cube-face cube-top"></div>
+            <div class="cube-face cube-bottom"></div>
+          </div>
         </div>
-    </header>
-
-    <main class="container mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
-        <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
-            <h2 class="text-base font-bold text-slate-700 border-b pb-3 flex items-center gap-2">
-                🏢 Cấu Hình Hệ Thống (Composite)
-            </h2>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Tòa nhà</label>
-                <select id="buildingSelect" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Chọn tòa nhà --</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Tầng (tùy chọn)</label>
-                <select id="floorSelect" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Chọn tầng --</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Phòng (tùy chọn)</label>
-                <select id="roomSelect" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Chọn phòng --</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Đơn giá điện (VNĐ/kWh)</label>
-                <input type="number" id="tariff" value="3000" step="100" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-            <div class="border-t pt-4">
-                <label class="block text-xs font-semibold text-slate-600 mb-1">⚙️ Chọn Chiến Lược (Strategy)</label>
-                <select id="strategy" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-blue-600">
-                    <option value="normal">Strategy 1: Normal Mode (Không tối ưu)</option>
-                    <option value="eco" selected>Strategy 2: Eco Saving (Giảm khi vắng người)</option>
-                    <option value="peak">Strategy 3: Peak Shaving (Giảm giờ cao điểm 18h-21h)</option>
-                    <option value="auto">Strategy 4: Auto Adaptive (Kết hợp người &amp; nhiệt độ)</option>
-                </select>
-                <p class="text-[10px] text-slate-400 mt-1">Chọn Tòa nhà = cả tòa; + Tầng = cả tầng; + Phòng = riêng phòng</p>
-            </div>
-            <button onclick="runSimulation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                🚀 Chạy Mô Phỏng Strategy
-            </button>
+        <div class="orbit-tabs" id="stageOneTabs" hidden>
+          <button class="tab-savings" data-panel="savingsPanel">✦ &nbsp;Tiết kiệm</button>
+          <button class="tab-compare" data-panel="comparePanel">So sánh tiêu thụ</button>
+          <button class="tab-share" data-panel="sharePanel">Tỷ trọng tiết kiệm</button>
+          <button class="tab-load" data-panel="loadPanel">Đường cong phụ tải</button>
+          <div class="secondary-tabs" id="stageTwoTabs" hidden>
+            <button data-panel="reportPanel">Báo cáo</button><button data-panel="dataPanel">Thêm dữ liệu</button>
+          </div>
+          <button class="group-close" id="closeStageOne" title="Đóng nhóm tab phân tích">×</button>
         </div>
-
-        <div class="lg:col-span-3 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                    <p class="text-xs text-slate-500 font-medium">Tổng điện ban đầu</p>
-                    <h3 id="lblBaseEnergy" class="text-lg font-bold text-slate-800 mt-1">0 kWh</h3>
-                </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                    <p class="text-xs text-slate-500 font-medium">Điện sau tối ưu</p>
-                    <h3 id="lblOptEnergy" class="text-lg font-bold text-blue-600 mt-1">0 kWh</h3>
-                </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                    <p class="text-xs text-slate-500 font-medium">Điện năng giảm được</p>
-                    <h3 id="lblSavedEnergy" class="text-lg font-bold text-emerald-600 mt-1">0 kWh</h3>
-                </div>
-                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-sm">
-                    <p class="text-xs text-blue-100 font-medium">💰 Tiền tiết kiệm tháng</p>
-                    <h3 id="lblSavedCost" class="text-lg font-bold mt-1">0 VNĐ</h3>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 id="barChartTitle" class="text-sm font-bold text-slate-700 mb-3">📊 So sánh Tiêu thụ (Trước vs Sau)</h3>
-                    <div class="relative h-60"><canvas id="barChart"></canvas></div>
-                </div>
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-sm font-bold text-slate-700 mb-3">🥧 Tỷ trọng Tiết kiệm</h3>
-                    <div class="relative h-60 flex justify-center"><canvas id="pieChart"></canvas></div>
-                </div>
-            </div>
-
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-sm font-bold text-slate-700 mb-3">📉 Đường cong Phụ tải 24 Giờ (Load Profile &amp; Peak Shaving)</h3>
-                <div class="relative h-64"><canvas id="lineChart"></canvas></div>
-            </div>
-
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-sm font-bold text-slate-700 mb-3">🛠️ Hệ Thống Đầy Đủ (Composite, CRUD, Decorator)</h3>
-                <div id="emsTabBar" style="display:flex; gap:26px; border-bottom:2px solid #e2e8f0; margin:10px 0 18px 0;">
-                    <button class="emsTab" onclick="emsGo(0,this)" style="background:none; border:none; border-bottom:3px solid #2563eb; color:#2563eb; font-size:18px; font-weight:700; padding:10px 4px; cursor:pointer;">📊 Báo Cáo</button>
-                    <button class="emsTab" onclick="emsGo(1,this)" style="background:none; border:none; border-bottom:3px solid transparent; color:#475569; font-size:18px; font-weight:700; padding:10px 4px; cursor:pointer;">➕ Thêm Dữ Liệu</button>
-                    <button class="emsTab" onclick="emsGo(2,this)" style="background:none; border:none; border-bottom:3px solid transparent; color:#475569; font-size:18px; font-weight:700; padding:10px 4px; cursor:pointer;">🌡️ Môi Trường</button>
-                </div>
-                <script>
-                function emsFindPanel(m1, m2) {
-                    var best = null;
-                    var divs = document.querySelectorAll('div');
-                    for (var i = 0; i < divs.length; i++) {
-                        if (divs[i].getAttribute('data-ems') === 'crud') { best = divs[i]; break; }
-                        var t = divs[i].textContent;
-                        if (t.indexOf(m1) !== -1 && t.indexOf(m2) !== -1) {
-                            if (best === null || t.length < best.textContent.length) best = divs[i];
-                        }
-                    }
-                    return best;
-                }
-                var emsPanels = [];
-                function emsInit() {
-                    emsPanels = [
-                        document.getElementById('tab-report') || emsFindPanel('Xem báo cáo tiêu thụ', 'Báo Cáo Ngày'),
-                        document.getElementById('tab-crud') || emsFindPanel('Tòa Nhà (Menu 2)', 'Thiết Bị (Menu 5)'),
-                        document.getElementById('tab-env') || emsFindPanel('Cập nhật trạng thái phòng theo giờ', 'Nhiệt độ (°C)')
-                    ];
-                    emsGo(0, null);
-                }
-                function emsGo(i, btn) {
-                    for (var k = 0; k < emsPanels.length; k++) {
-                        if (emsPanels[k]) emsPanels[k].style.display = (k === i) ? 'block' : 'none';
-                    }
-                    var tabs = document.querySelectorAll('#emsTabBar .emsTab');
-                    for (var t = 0; t < tabs.length; t++) {
-                        tabs[t].style.color = (t === i) ? '#2563eb' : '#475569';
-                        tabs[t].style.borderBottomColor = (t === i) ? '#2563eb' : 'transparent';
-                    }
-                }
-                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', emsInit);
-                else emsInit();
-                </script>
-
-                <div id="tab-report" class="tab-content">
-                    <p class="text-xs text-slate-500 mb-2">Xem báo cáo tiêu thụ (Tương ứng Menu 1 C++)</p>
-                    <button onclick="fetchReport('daily')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded mr-2">Báo Cáo Ngày</button>
-                    <button onclick="fetchReport('weekly')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded mr-2">Báo Cáo Tuần</button>
-                    <button onclick="fetchReport('monthly')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded">Báo Cáo Tháng</button>
-                    <pre id="reportOutput" class="mt-3 text-xs bg-slate-50 p-3 rounded-lg overflow-auto max-h-60 font-mono text-slate-600 border border-slate-200">Chọn loại báo cáo...</pre>
-                </div>
-
-                <div id="tab-crud" class="tab-content hidden" data-ems="crud">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                        <div class="border border-slate-200 p-3 rounded-lg">
-                            <h4 class="font-bold text-slate-700 mb-2">Thêm Tòa Nhà (Menu 2)</h4>
-                            <input id="in_b_code" placeholder="Mã tòa nhà (VD: B1)" class="w-full border rounded p-1.5 mb-1.5">
-                            <input id="in_b_name" placeholder="Tên tòa nhà (VD: Tòa A)" class="w-full border rounded p-1.5 mb-1.5">
-                            <div class="flex gap-1.5">
-                                <button onclick="addBuilding()" class="flex-1 bg-blue-500 text-white py-1.5 rounded hover:bg-blue-600">Thêm</button>
-                                <button onclick="deleteBuilding()" class="flex-1 bg-red-500 text-white py-1.5 rounded hover:bg-red-600">Xóa</button>
-                            </div>
-                            <input id="in_b_del" type="number" placeholder="Nhập Building ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
-                            <pre id="out_b" class="mt-2 text-[10px] text-green-600"></pre>
-                        </div>
-                        <div class="border border-slate-200 p-3 rounded-lg">
-                            <h4 class="font-bold text-slate-700 mb-2">Thêm Tầng (Menu 3)</h4>
-                            <input id="in_f_b" type="number" placeholder="ID Tòa nhà" class="w-full border rounded p-1.5 mb-1.5">
-                            <input id="in_f_code" placeholder="Mã tầng (VD: F1)" class="w-full border rounded p-1.5 mb-1.5">
-                            <input id="in_f_name" placeholder="Tên tầng (VD: Tầng 1)" class="w-full border rounded p-1.5 mb-1.5">
-                            <div class="flex gap-1.5">
-                                <button onclick="addFloor()" class="flex-1 bg-blue-500 text-white py-1.5 rounded hover:bg-blue-600">Thêm</button>
-                                <button onclick="deleteFloor()" class="flex-1 bg-red-500 text-white py-1.5 rounded hover:bg-red-600">Xóa</button>
-                            </div>
-                            <input id="in_f_del" type="number" placeholder="Nhập Floor ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
-                            <pre id="out_f" class="mt-2 text-[10px] text-green-600"></pre>
-                        </div>
-                        <div class="border border-slate-200 p-3 rounded-lg">
-                            <h4 class="font-bold text-slate-700 mb-2">Thêm Phòng (Menu 4)</h4>
-                            <input id="in_r_f" type="number" placeholder="ID Tầng" class="w-full border rounded p-1.5 mb-1.5">
-                            <input id="in_r_code" placeholder="Mã phòng (VD: R101)" class="w-full border rounded p-1.5 mb-1.5">
-                            <input id="in_r_name" placeholder="Tên phòng (VD: Phòng A)" class="w-full border rounded p-1.5 mb-1.5">
-                            <label class="block text-slate-600 text-[10px] mb-1">Sức chứa (số người tối đa)</label>
-                            <input id="in_r_cap" type="number" placeholder="VD: 10" value="10" class="w-full border rounded p-1.5 mb-1.5">
-                            <div class="flex gap-1.5">
-                                <button onclick="addRoom()" class="flex-1 bg-blue-500 text-white py-1.5 rounded hover:bg-blue-600">Thêm</button>
-                                <button onclick="deleteRoom()" class="flex-1 bg-red-500 text-white py-1.5 rounded hover:bg-red-600">Xóa</button>
-                            </div>
-                            <input id="in_r_del" type="number" placeholder="Nhập Room ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
-                            <pre id="out_r" class="mt-2 text-[10px] text-green-600"></pre>
-                        </div>
-                        <div class="border border-slate-200 p-3 rounded-lg">
-                            <h4 class="font-bold text-slate-700 mb-2">Thêm Thiết Bị (Menu 5)</h4>
-                            <input id="in_d_r" type="number" placeholder="ID Phòng" class="w-full border rounded p-1.5 mb-1.5">
-                            <input id="in_d_name" placeholder="Tên thiết bị (VD: Đèn trần)" class="w-full border rounded p-1.5 mb-1.5">
-                            <label class="block text-slate-600 text-[10px] mb-1">Loại thiết bị</label>
-                            <select id="in_d_type" class="w-full border rounded p-1.5 mb-1.5" onchange="updateDeviceForm()">
-                                <option value="light">Light (Đèn)</option>
-                                <option value="ac">AC (Điều hòa)</option>
-                                <option value="fan">Fan (Quạt)</option>
-                                <option value="computer">Computer (Máy tính)</option>
-                                <option value="projector">Projector (Máy chiếu)</option>
-                                <option value="refrigerator">Refrigerator (Tủ lạnh)</option>
-                                <option value="tv">TV (Tivi)</option>
-                                <option value="other">Other (Khác)</option>
-                            </select>
-                            <input id="in_d_type_other" placeholder="Nhập tên loại thiết bị" class="w-full border rounded p-1.5 mb-1.5 hidden">
-                            <label class="block text-slate-600 text-[10px] mb-1">Công suất (Watt)</label>
-                            <div class="flex gap-1.5 mb-1.5">
-                                <input id="in_d_power" type="number" placeholder="VD: 40" value="40" class="flex-1 border rounded p-1.5">
-                                <button onclick="setDefaultPower()" class="px-2 bg-slate-200 rounded text-[10px]">Mặc định</button>
-                            </div>
-                            <!-- ★ MỚI: inputs cho sensitivity -->
-                            <label class="block text-slate-600 text-[10px] mb-1">Mức nhạy cảm (0–5) — 0 = không phản ứng</label>
-                            <div class="flex gap-1.5 mb-1.5">
-                                <div class="flex-1">
-                                    <input id="in_d_os" type="number" placeholder="Người" min="0" max="5" value="3" class="w-full border rounded p-1.5">
-                                    <p class="text-[9px] text-slate-400 mt-0.5">occupancy_sensitivity</p>
-                                </div>
-                                <div class="flex-1">
-                                    <input id="in_d_ts" type="number" placeholder="Nhiệt" min="0" max="5" value="2" class="w-full border rounded p-1.5">
-                                    <p class="text-[9px] text-slate-400 mt-0.5">temp_sensitivity</p>
-                                </div>
-                            </div>
-                            <div class="mb-1.5">
-                                <label class="text-[10px] text-slate-600 font-medium">Lịch hoạt động</label>
-                                <div id="scheduleList" class="space-y-1 mb-1">
-                                    <div class="flex gap-1">
-                                        <input type="number" class="sch-start flex-1 border rounded p-1" placeholder="Bắt đầu (h)" value="7" min="0" max="23">
-                                        <input type="number" class="sch-end flex-1 border rounded p-1" placeholder="Kết thúc (h)" value="18" min="0" max="23">
-                                    </div>
-                                </div>
-                                <button onclick="addScheduleSlot()" class="w-full bg-slate-200 text-slate-700 py-1 rounded hover:bg-slate-300 text-[10px]">+ Thêm khoảng thời gian bật khác</button>
-                                <p class="text-[9px] text-amber-600 mt-1">💡 Peak Shaving chỉ tác dụng nếu thiết bị BẬT trong 18h–21h. Đặt lịch 18→22 để thấy tác dụng.</p>
-                            </div>
-                            <div class="flex gap-1.5">
-                                <button onclick="addDevice()" class="flex-1 bg-blue-500 text-white py-1.5 rounded hover:bg-blue-600">Thêm</button>
-                                <button onclick="deleteDevice()" class="flex-1 bg-red-500 text-white py-1.5 rounded hover:bg-red-600">Xóa</button>
-                            </div>
-                            <input id="in_d_del" type="number" placeholder="Nhập Device ID để xóa" class="w-full border rounded p-1.5 mt-1.5">
-                            <pre id="out_d" class="mt-2 text-[10px] text-green-600"></pre>
-                        </div>
-                    </div>
-                    <div class="mt-4 border border-slate-200 p-3 rounded-lg">
-                        <h4 class="font-bold text-slate-700 mb-2">Cập nhật trạng thái phòng theo giờ (Menu 6)</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
-                            <input id="in_rs_room" type="number" placeholder="Room ID" class="border rounded p-1.5">
-                            <input id="in_rs_start" type="number" placeholder="Giờ BĐ" value="0" min="0" max="23" class="border rounded p-1.5">
-                            <input id="in_rs_end" type="number" placeholder="Giờ KT" value="23" min="0" max="23" class="border rounded p-1.5">
-                            <input id="in_rs_people" type="number" placeholder="Số người" value="0" class="border rounded p-1.5">
-                            <input id="in_rs_temp" type="number" step="0.1" placeholder="Nhiệt độ (°C)" value="25" class="border rounded p-1.5">
-                            <input id="in_rs_hum" type="number" step="0.1" placeholder="Độ ẩm (%)" value="50" class="border rounded p-1.5">
-                        </div>
-                        <button onclick="updateRoomState()" class="mt-2 bg-emerald-500 text-white py-1.5 px-4 rounded hover:bg-emerald-600">Cập nhật trạng thái</button>
-                        <pre id="out_rs" class="mt-2 text-[10px] text-green-600"></pre>
-                    </div>
-                    <div class="mt-4 border border-slate-200 p-3 rounded-lg">
-                        <h4 class="font-bold text-slate-700 mb-2">Chọn chế độ tối ưu năng lượng cho Phòng (Menu 7)</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                            <input id="in_st_room" type="number" placeholder="Room ID" class="border rounded p-1.5">
-                            <select id="in_st_strategy" class="border rounded p-1.5">
-                                <option value="normal">Normal Mode</option>
-                                <option value="eco">Eco Saving</option>
-                                <option value="peak">Peak Shaving</option>
-                                <option value="auto">Auto Adaptive</option>
-                            </select>
-                            <button onclick="setRoomStrategy()" class="bg-blue-500 text-white py-1.5 px-4 rounded hover:bg-blue-600">Áp dụng</button>
-                        </div>
-                        <pre id="out_st" class="mt-2 text-[10px] text-green-600"></pre>
-                    </div>
-                </div>
-
-                <div id="tab-env" class="tab-content hidden">
-                    <p class="text-xs text-slate-500 mb-2">Cập nhật trạng thái phòng theo giờ (Tương ứng Menu 6 C++)</p>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3 text-xs">
-                        <div><label class="block text-slate-600 mb-1">Room ID</label><input id="in_s_r" type="number" placeholder="VD: 1" class="w-full border rounded p-1.5"></div>
-                        <div><label class="block text-slate-600 mb-1">Giờ bắt đầu</label><input id="in_s_start" type="number" value="8" min="0" max="23" class="w-full border rounded p-1.5"></div>
-                        <div><label class="block text-slate-600 mb-1">Giờ kết thúc</label><input id="in_s_end" type="number" value="17" min="0" max="23" class="w-full border rounded p-1.5"></div>
-                        <div><label class="block text-slate-600 mb-1">Số người</label><input id="in_s_ppl" type="number" value="0" min="0" class="w-full border rounded p-1.5"></div>
-                        <div><label class="block text-slate-600 mb-1">Nhiệt độ (°C)</label><input id="in_s_temp" type="number" value="25" step="0.1" class="w-full border rounded p-1.5"></div>
-                        <div><label class="block text-slate-600 mb-1">Độ ẩm (%)</label><input id="in_s_hum" type="number" value="50" step="0.1" class="w-full border rounded p-1.5"></div>
-                    </div>
-                    <button onclick="saveRoomState()" class="bg-emerald-500 text-white py-1.5 px-4 rounded hover:bg-emerald-600 font-bold text-xs">Lưu trạng thái phòng (Menu 6)</button>
-                    <pre id="out_s" class="mt-3 text-xs bg-slate-50 p-3 rounded-lg overflow-auto max-h-40 font-mono text-slate-600 border border-slate-200">Kết quả sẽ hiện ở đây...</pre>
-                </div>
-            </div>
-
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-sm font-bold text-slate-700 mb-3">📜 System Log</h3>
-                <pre id="logOutput" class="text-xs bg-slate-50 p-3 rounded-lg overflow-auto max-h-60 font-mono text-slate-600">System initialized...
-</pre>
-            </div>
+        <div class="period-panel" id="periodPanel" aria-label="Chọn thời gian">
+          <button class="period-btn active" data-period="daily">Ngày</button><button class="period-btn" data-period="weekly">Tuần</button><button class="period-btn" data-period="monthly">Tháng</button>
         </div>
-    </main>
+        <button class="group-close" id="closeStageTwo" title="Đóng tab báo cáo và dữ liệu" hidden>×</button>
+        <button class="group-close period-close" id="closeStageThree" title="Đóng lựa chọn ngày, tuần, tháng" hidden>×</button>
+        <div class="drag-tip">KÉO ĐỂ XOAY KHỐI LẬP PHƯƠNG · BẤM 1 / 2 LẦN ĐỂ MỞ CÁC NHÓM CÔNG CỤ</div>
+      </div>
 
-    <script>
-        let barChartInstance = null;
-        let pieChartInstance = null;
-        let lineChartInstance = null;
+      <div class="content-area">
+        <section class="card content-panel" id="savingsPanel"><div class="panel-heading"><div><h3 id="metricsTitle">Tiết kiệm năng lượng</h3><p id="metricsSubtitle">Chạy mô phỏng để cập nhật số liệu theo khoảng thời gian đã chọn.</p></div><button class="close-panel" aria-label="Đóng">×</button></div><div class="metric-grid"><div class="metric"><small id="baseMetricTitle">Tổng điện ban đầu</small><strong id="lblBaseEnergy">— kWh</strong></div><div class="metric"><small>Điện sau tối ưu</small><strong id="lblOptEnergy">— kWh</strong></div><div class="metric"><small>Điện năng giảm được</small><strong id="lblSavedEnergy">— kWh</strong></div><div class="metric"><small id="savedCostTitle">Tiết kiệm ngày</small><strong id="lblSavedCost">— VNĐ</strong></div></div></section>
+        <section class="card content-panel" id="comparePanel"><div class="panel-heading"><div><h3>So sánh tiêu thụ</h3><p id="compareSubtitle">Điện năng trước và sau tối ưu trong khoảng đã chọn.</p></div><button class="close-panel" aria-label="Đóng">×</button></div><div class="chart-card"><div class="chart-box"><canvas id="barChart"></canvas><div class="empty-chart">Chạy mô phỏng để xem biểu đồ.</div></div></div></section>
+        <section class="card content-panel" id="sharePanel"><div class="panel-heading"><div><h3>Tỷ trọng tiết kiệm</h3><p>Điện tiết kiệm và điện còn sử dụng sau tối ưu, tính trên cùng phạm vi.</p></div><button class="close-panel" aria-label="Đóng">×</button></div><div class="chart-card"><div class="chart-box"><canvas id="pieChart"></canvas><div class="empty-chart">Chạy mô phỏng để xem biểu đồ.</div></div></div></section>
+        <section class="card content-panel" id="loadPanel"><div class="panel-heading"><div><h3>Đường cong phụ tải</h3><p id="loadSubtitle">Điện năng từng giờ trong ngày đã chọn.</p></div><button class="close-panel" aria-label="Đóng">×</button></div><div class="chart-card"><div class="chart-box"><canvas id="lineChart"></canvas><div class="empty-chart">Chạy mô phỏng để xem biểu đồ.</div></div></div></section>
+        <section class="card content-panel" id="reportPanel"><div class="panel-heading"><div><h3>Báo cáo năng lượng</h3><p id="reportPeriodLabel">Báo cáo sử dụng cùng khoảng ngày, tuần hoặc tháng đã chọn.</p></div><button class="close-panel" aria-label="Đóng">×</button></div><button class="secondary" id="refreshReportBtn">Tạo báo cáo</button><pre class="report-box" id="reportOutput" style="margin-top:12px">Chạy mô phỏng để tạo báo cáo.</pre></section>
+        <section class="card content-panel" id="dataPanel"><div class="panel-heading"><div><h3>Thêm dữ liệu</h3><p>Chọn tên trong danh sách để liên kết tòa nhà, tầng, phòng và thiết bị.</p></div><button class="close-panel" aria-label="Đóng">×</button></div>
+          <div class="form-grid">
+            <div class="form-card"><h4>Tòa nhà</h4><input class="input" id="in_b_name" placeholder="Tên tòa nhà"><div class="form-actions"><button class="primary" style="padding:9px" onclick="addBuilding()">Thêm tòa nhà</button><button class="danger" onclick="deleteBuilding()">Xóa tòa nhà đã chọn</button></div><p class="small-note">Tên trùng sẽ tự thêm hậu tố #1, #2…</p><p class="form-message" id="out_b"></p></div>
+            <div class="form-card"><h4>Tầng</h4><select class="input" id="in_f_b"></select><input class="input" id="in_f_name" placeholder="Tên tầng"><div class="form-actions"><button class="primary" style="padding:9px" onclick="addFloor()">Thêm tầng</button><button class="danger" onclick="deleteFloor()">Xóa tầng đã chọn</button></div><select class="input" id="deleteFloorSelect" style="margin-top:9px"></select><p class="form-message" id="out_f"></p></div>
+            <div class="form-card"><h4>Phòng</h4><div class="device-grid"><select class="input" id="in_r_b"></select><select class="input" id="in_r_f"></select></div><input class="input" id="in_r_name" placeholder="Tên phòng"><label class="form-label">Sức chứa</label><input class="input" id="in_r_cap" type="number" min="1" value="10"><div class="form-actions"><button class="primary" style="padding:9px" onclick="addRoom()">Thêm phòng</button><button class="danger" onclick="deleteRoom()">Xóa phòng đã chọn</button></div><select class="input" id="deleteRoomSelect" style="margin-top:9px"></select><p class="form-message" id="out_r"></p></div>
+            <div class="form-card"><h4>Thiết bị và lịch hoạt động</h4><div class="device-grid"><select class="input" id="in_d_b"></select><select class="input" id="in_d_f"></select><select class="input wide" id="in_d_r"></select><input class="input wide" id="in_d_name" placeholder="Tên thiết bị"></div><div class="device-grid"><select class="input" id="in_d_type" onchange="updateDeviceForm()"><option value="light">Đèn</option><option value="ac">Điều hòa</option><option value="fan">Quạt</option><option value="computer">Máy tính</option><option value="projector">Máy chiếu</option><option value="refrigerator">Tủ lạnh</option><option value="tv">Tivi</option><option value="other">Khác</option></select><input class="input" id="in_d_type_other" placeholder="Loại thiết bị" hidden><input class="input" id="in_d_power" type="number" min="0" value="40" placeholder="Công suất (W)"><input class="input" id="in_d_os" type="number" min="0" max="5" value="3" placeholder="Nhạy với số người (0–5)"><input class="input" id="in_d_ts" type="number" min="0" max="5" value="2" placeholder="Nhạy với nhiệt độ (0–5)"></div>
+              <label class="form-label">Lịch hoạt động (mỗi khoảng có lịch áp dụng riêng)</label><div class="schedule-list" id="scheduleList"></div><button class="secondary" style="width:100%;margin-top:8px" onclick="addScheduleSlot()">＋ Thêm khoảng thời gian bật khác</button><div class="form-actions" style="margin-top:10px"><button class="primary" style="padding:9px" onclick="addDevice()">Thêm thiết bị</button><button class="danger" onclick="deleteDevice()">Xóa thiết bị đã chọn</button></div><select class="input" id="deleteDeviceSelect" style="margin-top:9px"></select><p class="form-message" id="out_d"></p></div>
+            <div class="form-card"><h4>Chiến lược riêng (Menu 7)</h4><select class="input" id="in_st_scope" onchange="updateStrategyScope()"><option value="building">Tòa nhà</option><option value="floor">Tầng</option><option value="room">Phòng</option></select><select class="input" id="in_st_b"></select><select class="input" id="in_st_f"></select><select class="input" id="in_st_r"></select><select class="input" id="in_st_strategy"><option value="normal">Normal Mode</option><option value="eco">Eco Saving</option><option value="peak">Peak Shaving</option><option value="auto">Auto Adaptive</option></select><select class="input" id="strategyPeriod" onchange="renderDatePicker('strategyDatePicker',this.value)"><option value="daily">Hằng ngày</option><option value="weekly">Theo tuần này</option><option value="monthly">Theo tháng này</option></select><div id="strategyDatePicker"></div><button class="primary" onclick="setScopeStrategy()">Lưu chiến lược cho phạm vi</button><p class="small-note">Khi mô phỏng cả tòa nhà, các phòng và tầng có chiến lược đang áp dụng sẽ dùng chiến lược riêng.</p><p class="form-message" id="out_st"></p></div>
+          </div>
+        </section>
+      </div>
+      <section class="card log-panel"><h3>NHẬT KÝ HỆ THỐNG</h3><div class="log-output" id="logOutput">Khởi tạo bảng điều khiển…</div></section>
+    </section>
+  </main>
 
-        // ★ MỚI: format số không bị làm tròn về 0
-        function fmtNum(v, unit = '') {
-            const suffix = unit ? ' ' + unit : '';
-            if (v === 0 || v === null || v === undefined) return '0' + suffix;
-            const abs = Math.abs(v);
-            if (abs < 0.01) return v.toFixed(3) + suffix;
-            if (abs < 1)    return v.toFixed(2) + suffix;
-            if (abs < 10)   return v.toFixed(1) + suffix;
-            return Math.round(v).toLocaleString() + suffix;
-        }
-
-        function log(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            const logOutput = document.getElementById('logOutput');
-            logOutput.textContent += `[${timestamp}] ${message}\n`;
-            logOutput.scrollTop = logOutput.scrollHeight;
-        }
-
-        function setStatus(connected, message = '') {
-            const badge = document.getElementById('statusBadge');
-            if (connected) {
-                badge.textContent = '● System Active';
-                badge.className = 'bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-emerald-400';
-            } else {
-                badge.textContent = '● Connection Error';
-                badge.className = 'bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-red-400';
-            }
-            if (message) log(message);
-        }
-
-        async function apiCall(url, options = {}) {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                return await response.json();
-            } catch (error) {
-                log(`API Error: ${error.message}`);
-                throw error;
-            }
-        }
-
-        async function checkHealth() {
-            try {
-                await apiCall('/api/health');
-                setStatus(true, 'Backend connected successfully');
-                return true;
-            } catch (error) {
-                setStatus(false, 'Cannot connect to C++ backend');
-                return false;
-            }
-        }
-
-        async function loadBuildings() {
-            try {
-                const buildings = await apiCall('/api/buildings');
-                const select = document.getElementById('buildingSelect');
-                select.innerHTML = '<option value="">-- Chọn tòa nhà --</option>';
-                buildings.forEach(b => {
-                    const option = document.createElement('option');
-                    option.value = b.id;
-                    option.textContent = `${b.name} (#${b.id})`;
-                    select.appendChild(option);
-                });
-                log(`Loaded ${buildings.length} buildings`);
-            } catch (error) { log('Failed to load buildings: ' + error.message); }
-        }
-
-        async function loadFloors(buildingId) {
-            if (!buildingId) return;
-            try {
-                const floors = await apiCall(`/api/floors?building_id=${buildingId}`);
-                const select = document.getElementById('floorSelect');
-                select.innerHTML = '<option value="">-- Chọn tầng --</option>';
-                floors.forEach(f => {
-                    const option = document.createElement('option');
-                    option.value = f.id;
-                    option.textContent = `${f.name} (#${f.id})`;
-                    select.appendChild(option);
-                });
-            } catch (error) { log('Failed to load floors: ' + error.message); }
-        }
-
-        async function loadRooms(buildingId) {
-            if (!buildingId) return;
-            try {
-                const rooms = await apiCall(`/api/rooms?building_id=${buildingId}`);
-                const select = document.getElementById('roomSelect');
-                select.innerHTML = '<option value="">-- Chọn phòng --</option>';
-                rooms.forEach(r => {
-                    const option = document.createElement('option');
-                    option.value = r.id;
-                    option.textContent = `${r.name} (#${r.id})`;
-                    option.dataset.strategy = r.strategy || 'normal';
-                    option.dataset.floorId  = r.floor_id || '';
-                    option.dataset.capacity = r.capacity || 10;
-                    select.appendChild(option);
-                });
-            } catch (error) { log('Failed to load rooms: ' + error.message); }
-        }
-
-        // =========================================================
-        // ★ MỚI: Parse attributes an toàn — chấp nhận cả object, string, field alias
-        // =========================================================
-        function parseAttrs(device) {
-            let attrs = device && (device.attributes ?? device.attrs ?? device.properties ?? device.config) || {};
-            // Có thể backend trả về string JSON (double-stringified)
-            for (let i = 0; i < 2 && typeof attrs === 'string'; i++) {
-                try { attrs = JSON.parse(attrs); } catch (e) { attrs = {}; break; }
-            }
-            return (attrs && typeof attrs === 'object') ? attrs : {};
-        }
-
-        // ★ MỚI: Lấy sensitivity — nếu thiếu → default theo loại thiết bị
-        function getEffectiveSensitivity(attrs) {
-            const type = String(attrs.device_type || attrs.type || 'other').toLowerCase();
-            const typeDefaults = {
-                light:        { os: 4, ts: 0 },
-                ac:           { os: 3, ts: 5 },
-                fan:          { os: 2, ts: 3 },
-                computer:     { os: 2, ts: 1 },
-                projector:    { os: 3, ts: 1 },
-                refrigerator: { os: 0, ts: 2 },
-                tv:           { os: 3, ts: 0 },
-                other:        { os: 2, ts: 2 }
-            };
-            const d = typeDefaults[type] || typeDefaults.other;
-            // ★ Chỉ dùng default nếu field KHÔNG tồn tại (undefined/null). Nếu user set 0 → tôn trọng 0.
-            const rawOs = (attrs.occupancy_sensitivity !== undefined && attrs.occupancy_sensitivity !== null)
-                ? attrs.occupancy_sensitivity : d.os;
-            const rawTs = (attrs.temp_sensitivity !== undefined && attrs.temp_sensitivity !== null)
-                ? attrs.temp_sensitivity : d.ts;
-            const os = Math.max(0, Math.min(5, parseInt(rawOs) || 0));
-            const ts = Math.max(0, Math.min(5, parseInt(rawTs) || 0));
-            return { os, ts, source: 'effective' };
-        }
-
-        function getRatedPowerW(attrs) {
-            const v = attrs.rated_power_w ?? attrs.power_w ?? attrs.wattage ?? attrs.power ?? 0;
-            return parseFloat(v) || 0;
-        }
-
-        function getSchedule(attrs) {
-            const s = attrs.schedule ?? attrs.slots ?? attrs.time_slots ?? [];
-            if (Array.isArray(s)) return s;
-            if (typeof s === 'object' && s !== null) return [s];
-            return [];
-        }
-
-        function isDeviceOnAt(schedule, hour) {
-            if (!Array.isArray(schedule) || schedule.length === 0) return false;
-            hour = ((hour % 24) + 24) % 24;
-            for (const slot of schedule) {
-                if (!slot || typeof slot !== 'object') continue;
-                const s = parseInt(slot.start ?? slot.startHour ?? slot.start_hour ?? -1);
-                const e = parseInt(slot.end   ?? slot.endHour   ?? slot.end_hour   ?? -1);
-                if (isNaN(s) || isNaN(e) || s === e || s < 0 || e < 0) continue;
-                if (s < e) { if (hour >= s && hour < e) return true; }
-                else       { if (hour >= s || hour < e) return true; }
-            }
-            return false;
-        }
-
-        // ★ SỬA: nhận state thật từ room, dùng effective sensitivity
-        function computeStrategyFactor(attrs, capacity, hour, strategy, state) {
-            if (strategy === 'normal') return 1.0;
-            const { os, ts } = getEffectiveSensitivity(attrs);
-            const people = (state && state.people_count != null) ? state.people_count : 0;
-            const temp   = (state && state.temperature_c != null) ? state.temperature_c : 25;
-            const occ = capacity > 0 ? Math.min(1, Math.max(0, people / capacity)) : 1.0;
-
-            if (strategy === 'eco') {
-                if (os <= 0) return 1.0;
-                let reduction = 0;
-                if (occ <= 0)       reduction = os * 0.12;
-                else if (occ < 0.3) reduction = os * 0.08;
-                else if (occ < 0.6) reduction = os * 0.04;
-                return Math.max(0.2, 1 - reduction);
-            }
-            if (strategy === 'peak') {
-                if (hour < 18 || hour >= 21) return 1.0;
-                const tsKeep = ts * 0.04;
-                return 1 - Math.max(0.05, 0.30 - tsKeep);
-            }
-            if (strategy === 'auto') {
-                let factor = 1.0;
-                if (os > 0) {
-                    let reduction = 0;
-                    if (occ <= 0)       reduction = os * 0.12;
-                    else if (occ < 0.3) reduction = os * 0.08;
-                    else if (occ < 0.6) reduction = os * 0.04;
-                    factor *= (1 - reduction);
-                }
-                if (ts > 0) {
-                    let addition = 0;
-                    if (temp >= 35)      addition = ts * 0.07;
-                    else if (temp >= 30) addition = ts * 0.05;
-                    else if (temp <= 22) addition = -ts * 0.02;
-                    factor *= (1 + addition);
-                }
-                return Math.max(0.1, factor);
-            }
-            return 1.0;
-        }
-
-        // ★ MỚI: fetch room states (nếu API có), fallback về mặc định
-        async function fetchRoomStates(roomId) {
-            try {
-                const resp = await apiCall(`/api/room-states?room_id=${roomId}`);
-                const list = Array.isArray(resp) ? resp : (resp && Array.isArray(resp.states) ? resp.states : []);
-                const map = {};
-                for (const st of list) {
-                    const h = parseInt(st.hour_of_day ?? st.hour);
-                    if (!isNaN(h) && h >= 0 && h < 24) map[h] = st;
-                }
-                return map;
-            } catch (e) {
-                return {}; // endpoint có thể chưa tồn tại
-            }
-        }
-
-        // ★ SỬA HOÀN TOÀN: chẩn đoán + tính toán client-side chuẩn xác
-        async function computeSimulationClientSide(buildingId, floorId, roomId, strategy) {
-            const diag = {
-                roomCount: 0, deviceCount: 0,
-                devicesWithSchedule: 0, devicesWithPower: 0,
-                devicesOnDuringPeak: 0,
-                totalPowerW: 0, sampleDevice: null,
-                strategy, roomStatesAvailable: false
-            };
-
-            const allRooms = await apiCall(`/api/rooms?building_id=${buildingId}`);
-            let rooms;
-            if (roomId) {
-                rooms = allRooms.filter(r => r.id === parseInt(roomId));
-            } else if (floorId) {
-                rooms = allRooms.filter(r => parseInt(r.floor_id) === parseInt(floorId));
-                if (rooms.length === 0 && allRooms.length > 0) {
-                    log('⚠️ API không trả floor_id → dùng toàn tòa.');
-                    rooms = allRooms;
-                }
-            } else {
-                rooms = allRooms;
-            }
-            diag.roomCount = rooms.length;
-
-            const baseHourly = new Array(24).fill(0);
-            const optHourly  = new Array(24).fill(0);
-
-            for (const room of rooms) {
-                const capacity = parseInt(room.capacity) || 10;
-                const statesMap = await fetchRoomStates(room.id);
-                if (Object.keys(statesMap).length > 0) diag.roomStatesAvailable = true;
-
-                let devices;
-                try {
-                    const resp = await apiCall(`/api/devices?room_id=${room.id}`);
-                    devices = Array.isArray(resp) ? resp : (resp && Array.isArray(resp.devices) ? resp.devices : []);
-                } catch (e) {
-                    log(`⚠️ Bỏ qua room ${room.id}: ${e.message}`);
-                    continue;
-                }
-
-                for (const device of devices) {
-                    diag.deviceCount++;
-                    const attrs = parseAttrs(device);
-                    const ratedPowerW = getRatedPowerW(attrs);
-                    const schedule = getSchedule(attrs);
-
-                    if (ratedPowerW > 0) diag.devicesWithPower++;
-                    if (schedule.length > 0) diag.devicesWithSchedule++;
-                    diag.totalPowerW += ratedPowerW;
-
-                    if (!diag.sampleDevice) {
-                        diag.sampleDevice = {
-                            name: device.device_name || device.name || '(?)',
-                            attrs: attrs,
-                            powerW: ratedPowerW,
-                            schedule: schedule
-                        };
-                    }
-
-                    // đếm thiết bị BẬT trong giờ cao điểm
-                    for (let h = 18; h < 21; h++) {
-                        if (isDeviceOnAt(schedule, h) && ratedPowerW > 0) {
-                            diag.devicesOnDuringPeak++;
-                            break;
-                        }
-                    }
-
-                    const usageDays = Math.min(7, Math.max(0, parseFloat(attrs.usage_days_per_week ?? 7)));
-
-                    for (let h = 0; h < 24; h++) {
-                        if (!isDeviceOnAt(schedule, h)) continue;
-
-                        const baseKwh = (ratedPowerW / 1000.0) * 1.0;
-                        const factor  = computeStrategyFactor(attrs, capacity, h, strategy, statesMap[h]);
-                        const optKwh  = baseKwh * factor;
-
-                        baseHourly[h] += baseKwh * usageDays;
-                        optHourly[h]  += optKwh  * usageDays;
-                    }
-                }
-            }
-
-            // Tổng tháng = tổng daily * 52/12
-            const daysFactor = 52.0 / 12.0;
-            const baseMonthly = baseHourly.reduce((a, b) => a + b, 0) * daysFactor;
-            const optMonthly  = optHourly.reduce((a, b) => a + b, 0) * daysFactor;
-
-            return { baseHourly, optHourly, baseMonthly, optMonthly, diag };
-        }
-
-        async function runSimulation() {
-            const buildingId = document.getElementById('buildingSelect').value;
-            const floorId    = document.getElementById('floorSelect').value;
-            const roomId     = document.getElementById('roomSelect').value;
-            const strategy   = document.getElementById('strategy').value;
-            const tariff     = parseFloat(document.getElementById('tariff').value) || 3000;
-
-            if (!buildingId) { alert('Vui lòng chọn tòa nhà trước!'); return; }
-
-            const bName = document.getElementById('buildingSelect').selectedOptions[0]?.textContent || '';
-            const fName = floorId ? (document.getElementById('floorSelect').selectedOptions[0]?.textContent || '') : null;
-            const rName = roomId  ? (document.getElementById('roomSelect').selectedOptions[0]?.textContent || '') : null;
-
-            let scopeLabel = bName;
-            if (roomId)       scopeLabel += ' › ' + fName + ' › ' + rName;
-            else if (floorId) scopeLabel += ' › ' + fName;
-
-            try {
-                log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-                log(`▶ Mô phỏng: ${scopeLabel} | Strategy: ${strategy}`);
-
-                // ★ SỬA: LUÔN tính client-side cho biểu đồ (API hourly không đáng tin)
-                const computed = await computeSimulationClientSide(buildingId, floorId, roomId, strategy);
-
-                // In chẩn đoán
-                const d = computed.diag;
-                log(`📋 Chẩn đoán:`);
-                log(`   • Phòng: ${d.roomCount} | Thiết bị: ${d.deviceCount}`);
-                log(`   • Có power: ${d.devicesWithPower}/${d.deviceCount} | Có schedule: ${d.devicesWithSchedule}/${d.deviceCount}`);
-                log(`   • Tổng công suất: ${d.totalPowerW} W`);
-                log(`   • Thiết bị BẬT trong peak (18-21h): ${d.devicesOnDuringPeak}`);
-                log(`   • Room states: ${d.roomStatesAvailable ? 'CÓ' : 'không (dùng mặc định 0 người, 25°C)'}`);
-
-                if (d.sampleDevice) {
-                    const s = d.sampleDevice;
-                    log(`   • Sample: "${s.name}" — ${s.powerW}W, schedule=${JSON.stringify(s.schedule)}`);
-                    log(`   • attrs keys: ${Object.keys(s.attrs || {}).join(', ') || '(rỗng!)'}`);
-                }
-
-                // Cảnh báo khi không có khác biệt
-                if (d.deviceCount === 0) {
-                    log(`   ⛔ KHÔNG có thiết bị nào — thêm thiết bị vào phòng trước!`);
-                }
-                if (d.devicesWithSchedule === 0 && d.deviceCount > 0) {
-                    log(`   ⛔ Tất cả thiết bị KHÔNG có schedule hợp lệ → công suất = 0!`);
-                }
-                if (d.devicesWithPower === 0 && d.deviceCount > 0) {
-                    log(`   ⛔ Tất cả thiết bị có rated_power_w = 0!`);
-                }
-                if (strategy === 'peak' && d.devicesOnDuringPeak === 0 && d.deviceCount > 0) {
-                    log(`   ℹ️ Không có thiết bị nào BẬT 18-21h → Peak Shaving không có tác dụng. Thêm thiết bị có lịch 18→22.`);
-                }
-                if (strategy === 'eco' || strategy === 'auto') {
-                    log(`   ℹ️ Strategy này cần occupancy_sensitivity > 0 (mặc định theo loại = OK).`);
-                }
-
-                const baseEnergy = computed.baseMonthly;
-                const optEnergy  = computed.optMonthly;
-                const savedEnergy = Math.max(0, baseEnergy - optEnergy);
-                const savedCost   = savedEnergy * tariff;
-
-                document.getElementById('lblBaseEnergy').innerText  = fmtNum(baseEnergy, 'kWh');
-                document.getElementById('lblOptEnergy').innerText   = fmtNum(optEnergy,  'kWh');
-                document.getElementById('lblSavedEnergy').innerText = fmtNum(savedEnergy, 'kWh');
-                document.getElementById('lblSavedCost').innerText   = fmtNum(savedCost, 'VNĐ');
-
-                const title = `${scopeLabel} [${strategy}]`;
-                document.getElementById('barChartTitle').textContent = '📊 So sánh Tiêu thụ — ' + title;
-
-                renderCharts(title, baseEnergy, optEnergy, savedEnergy, strategy, computed.baseHourly, computed.optHourly);
-
-                if (savedEnergy < 0.01 && strategy !== 'normal') {
-                    log(`⚠️ Không có chênh lệch cho strategy "${strategy}". Xem chẩn đoán phía trên.`);
-                } else {
-                    log(`✔ Hoàn tất: base=${fmtNum(baseEnergy)} kWh | opt=${fmtNum(optEnergy)} kWh | saved=${fmtNum(savedEnergy)} kWh`);
-                }
-            } catch (error) {
-                alert('Lỗi khi chạy mô phỏng: ' + error.message);
-                log('Simulation error: ' + error.message);
-            }
-        }
-
-        function renderCharts(label, baseEnergy, optEnergy, savedEnergy, strategyType, baseHourly, optHourly) {
-            // ===== BAR =====
-            const ctxBar = document.getElementById('barChart').getContext('2d');
-            if (barChartInstance) barChartInstance.destroy();
-            barChartInstance = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: [label],
-                    datasets: [
-                        { label: 'Ban đầu',    data: [baseEnergy], backgroundColor: '#94a3b8', borderRadius: 6 },
-                        { label: 'Sau tối ưu', data: [optEnergy],  backgroundColor: '#2563eb', borderRadius: 6 }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, title: { display: true, text: 'kWh / tháng' } } },
-                    plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtNum(c.parsed.y) + ' kWh' } } }
-                }
-            });
-
-            // ===== PIE (kWh, KHÔNG trộn đơn vị) =====
-            const savedKwh     = Math.max(0, savedEnergy);
-            const remainingKwh = Math.max(0, optEnergy);
-            const hasDifference = savedKwh > 0.01;
-            const ctxPie = document.getElementById('pieChart').getContext('2d');
-            if (pieChartInstance) pieChartInstance.destroy();
-            pieChartInstance = new Chart(ctxPie, {
-                type: 'doughnut',
-                data: {
-                    labels: hasDifference ? ['Tiết kiệm (kWh)', 'Còn lại (kWh)'] : ['Không tiết kiệm', 'Toàn bộ (kWh)'],
-                    datasets: [{
-                        data: hasDifference ? [savedKwh, remainingKwh] : [1, Math.max(remainingKwh, 1)],
-                        backgroundColor: hasDifference ? ['#10b981', '#e2e8f0'] : ['#fbbf24', '#e2e8f0'],
-                        borderColor: hasDifference ? ['#059669', '#cbd5e1'] : ['#f59e0b', '#cbd5e1'],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: { callbacks: { label: c => {
-                            if (!hasDifference) return c.label;
-                            const total = savedKwh + remainingKwh;
-                            const pct = total > 0 ? (c.parsed / total * 100).toFixed(1) : '0.0';
-                            return `${c.label}: ${fmtNum(c.parsed)} (${pct}%)`;
-                        }}}
-                    }
-                }
-            });
-
-            // ===== LINE =====
-            const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
-            const baseLoad = (Array.isArray(baseHourly) && baseHourly.length === 24) ? baseHourly : new Array(24).fill(0);
-            const optLoad  = (Array.isArray(optHourly)  && optHourly.length  === 24) ? optHourly  : new Array(24).fill(0);
-
-            // ★ Nếu 2 mảng giống hệt → offset nhẹ đường xanh để thấy (chỉ để hiển thị)
-            let displayOpt = optLoad.slice();
-            let isIdentical = baseLoad.every((v, i) => Math.abs(v - optLoad[i]) < 1e-9);
-            if (isIdentical && baseLoad.some(v => v > 0)) {
-                // offset +2% để đường xanh lộ ra
-                displayOpt = baseLoad.map(v => v * 1.02);
-            }
-
-            const ctxLine = document.getElementById('lineChart').getContext('2d');
-            if (lineChartInstance) lineChartInstance.destroy();
-            lineChartInstance = new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: hours,
-                    datasets: [
-                        {
-                            label: 'Phụ tải Gốc (Normal)',
-                            data: baseLoad,
-                            borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239,68,68,0.08)',
-                            borderWidth: 2,
-                            tension: 0.3, fill: true, pointRadius: 0
-                        },
-                        {
-                            label: 'Phụ tải ' + strategyType + (isIdentical ? ' (không đổi)' : ''),
-                            data: displayOpt,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16,185,129,0.12)',
-                            borderWidth: 3,
-                            borderDash: isIdentical ? [6, 4] : [],
-                            tension: 0.3, fill: true, pointRadius: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'kWh / giờ' } },
-                        x: { title: { display: true, text: 'Giờ trong ngày' } }
-                    },
-                    plugins: {
-                        tooltip: { callbacks: {
-                            afterBody: (items) => {
-                                if (items.length >= 2 && !isIdentical) {
-                                    const b = items[0].parsed.y, o = items[1].parsed.y;
-                                    if (b > 0) return '↓ Giảm: ' + ((b - o) / b * 100).toFixed(1) + '%';
-                                }
-                                return '';
-                            }
-                        }}
-                    }
-                }
-            });
-        }
-
-        async function fetchReport(type) {
-            const buildingId = document.getElementById('buildingSelect').value;
-            if (!buildingId) { alert('Chọn tòa nhà ở sidebar trước!'); return; }
-            try {
-                const data = await apiCall(`/api/building/${buildingId}`);
-                let text = `=== BÁO CÁO ${type.toUpperCase()} ===\nTòa nhà: ${data.building_name}\n`;
-                text += `Daily:   ${fmtNum(data.daily_kwh || 0)} kWh\n`;
-                text += `Weekly:  ${fmtNum(data.weekly_kwh || 0)} kWh\n`;
-                text += `Monthly: ${fmtNum(data.monthly_kwh || 0)} kWh\n`;
-                document.getElementById('reportOutput').textContent = text;
-            } catch (e) { document.getElementById('reportOutput').textContent = "Lỗi: " + e.message; }
-        }
-
-        async function addBuilding() {
-            try {
-                const res = await apiCall('/api/buildings', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ code: document.getElementById('in_b_code').value, name: document.getElementById('in_b_name').value }) });
-                document.getElementById('out_b').textContent = "OK: ID " + res.id; loadBuildings();
-            } catch (e) { document.getElementById('out_b').textContent = "Lỗi: " + e.message; }
-        }
-        async function addFloor() {
-            try {
-                const res = await apiCall('/api/floors', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ building_id: parseInt(document.getElementById('in_f_b').value), code: document.getElementById('in_f_code').value, name: document.getElementById('in_f_name').value }) });
-                document.getElementById('out_f').textContent = "OK: ID " + res.id;
-            } catch (e) { document.getElementById('out_f').textContent = "Lỗi: " + e.message; }
-        }
-        async function addRoom() {
-            try {
-                const res = await apiCall('/api/rooms', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ floor_id: parseInt(document.getElementById('in_r_f').value), code: document.getElementById('in_r_code').value, name: document.getElementById('in_r_name').value, capacity: parseInt(document.getElementById('in_r_cap').value) }) });
-                document.getElementById('out_r').textContent = "OK: ID " + res.id;
-            } catch (e) { document.getElementById('out_r').textContent = "Lỗi: " + e.message; }
-        }
-
-        function updateDeviceForm() {
-            const type = document.getElementById('in_d_type').value;
-            const otherInput = document.getElementById('in_d_type_other');
-            otherInput.classList.toggle('hidden', type !== 'other');
-            setDefaultPower();
-        }
-        function setDefaultPower() {
-            const type = document.getElementById('in_d_type').value;
-            const defaults = {
-                light:        { p: 40,   os: 4, ts: 0 },
-                ac:           { p: 1200, os: 3, ts: 5 },
-                fan:          { p: 75,   os: 2, ts: 3 },
-                computer:     { p: 300,  os: 2, ts: 1 },
-                projector:    { p: 250,  os: 3, ts: 1 },
-                refrigerator: { p: 150,  os: 0, ts: 2 },
-                tv:           { p: 100,  os: 3, ts: 0 },
-                other:        { p: 100,  os: 2, ts: 2 }
-            };
-            const d = defaults[type] || defaults.other;
-            document.getElementById('in_d_power').value = d.p;
-            document.getElementById('in_d_os').value = d.os;
-            document.getElementById('in_d_ts').value = d.ts;
-        }
-        function addScheduleSlot() {
-            const list = document.getElementById('scheduleList');
-            const div = document.createElement('div');
-            div.className = 'flex gap-1';
-            div.innerHTML = '<input type="number" class="sch-start flex-1 border rounded p-1" placeholder="BĐ" min="0" max="23"><input type="number" class="sch-end flex-1 border rounded p-1" placeholder="KT" min="0" max="23"><button onclick="this.parentElement.remove()" class="px-2 bg-red-100 text-red-600 rounded">×</button>';
-            list.appendChild(div);
-        }
-        async function addDevice() {
-            try {
-                let deviceType = document.getElementById('in_d_type').value;
-                if (deviceType === 'other') deviceType = document.getElementById('in_d_type_other').value || 'other';
-                const schedule = [];
-                document.querySelectorAll('#scheduleList > div').forEach(div => {
-                    const s = div.querySelector('.sch-start'), e = div.querySelector('.sch-end');
-                    if (s && e) schedule.push({ start: parseInt(s.value), end: parseInt(e.value) });
-                });
-                const attrs = {
-                    device_type: deviceType,
-                    rated_power_w: parseFloat(document.getElementById('in_d_power').value) || 0,
-                    // ★ MỚI: gửi sensitivity lên server
-                    occupancy_sensitivity: Math.max(0, Math.min(5, parseInt(document.getElementById('in_d_os').value) || 0)),
-                    temp_sensitivity:      Math.max(0, Math.min(5, parseInt(document.getElementById('in_d_ts').value) || 0)),
-                    schedule,
-                    usage_days_per_week: 7
-                };
-                if (deviceType === 'light') { attrs.daylight_sensitive = true; attrs.daylight_threshold = 500; }
-                const res = await apiCall('/api/devices', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ room_id: parseInt(document.getElementById('in_d_r').value), device_name: document.getElementById('in_d_name').value, attributes: attrs }) });
-                document.getElementById('out_d').textContent = "OK: ID " + res.id;
-            } catch (e) { document.getElementById('out_d').textContent = "Lỗi: " + e.message; }
-        }
-
-        async function deleteBuilding() {
-            try { const id = document.getElementById('in_b_del').value;
-                if (!id) { alert('Nhập Building ID'); return; }
-                await apiCall('/api/buildings/' + id, { method: 'DELETE' });
-                document.getElementById('out_b').textContent = "Đã xóa Building ID " + id; loadBuildings();
-            } catch (e) { document.getElementById('out_b').textContent = "Lỗi: " + e.message; }
-        }
-        async function deleteFloor() {
-            try { const id = document.getElementById('in_f_del').value;
-                if (!id) { alert('Nhập Floor ID'); return; }
-                await apiCall('/api/floors/' + id, { method: 'DELETE' });
-                document.getElementById('out_f').textContent = "Đã xóa Floor ID " + id;
-            } catch (e) { document.getElementById('out_f').textContent = "Lỗi: " + e.message; }
-        }
-        async function deleteRoom() {
-            try { const id = document.getElementById('in_r_del').value;
-                if (!id) { alert('Nhập Room ID'); return; }
-                await apiCall('/api/rooms/' + id, { method: 'DELETE' });
-                document.getElementById('out_r').textContent = "Đã xóa Room ID " + id;
-            } catch (e) { document.getElementById('out_r').textContent = "Lỗi: " + e.message; }
-        }
-        async function deleteDevice() {
-            try { const id = document.getElementById('in_d_del').value;
-                if (!id) { alert('Nhập Device ID'); return; }
-                await apiCall('/api/devices/' + id, { method: 'DELETE' });
-                document.getElementById('out_d').textContent = "Đã xóa Device ID " + id;
-            } catch (e) { document.getElementById('out_d').textContent = "Lỗi: " + e.message; }
-        }
-
-        async function updateRoomState() {
-            try {
-                await apiCall('/api/room-states', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ room_id: parseInt(document.getElementById('in_rs_room').value), start_hour: parseInt(document.getElementById('in_rs_start').value), end_hour: parseInt(document.getElementById('in_rs_end').value), people_count: parseInt(document.getElementById('in_rs_people').value), temperature_c: parseFloat(document.getElementById('in_rs_temp').value), humidity: parseFloat(document.getElementById('in_rs_hum').value) }) });
-                document.getElementById('out_rs').textContent = "Đã cập nhật thành công";
-            } catch (e) { document.getElementById('out_rs').textContent = "Lỗi: " + e.message; }
-        }
-        async function setRoomStrategy() {
-            try {
-                await apiCall('/api/strategy/room', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ roomId: parseInt(document.getElementById('in_st_room').value), strategy: document.getElementById('in_st_strategy').value }) });
-                document.getElementById('out_st').textContent = "Đã áp dụng chế độ: " + document.getElementById('in_st_strategy').value;
-            } catch (e) { document.getElementById('out_st').textContent = "Lỗi: " + e.message; }
-        }
-        async function saveRoomState() {
-            try {
-                const res = await apiCall('/api/room-states', { method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ room_id: parseInt(document.getElementById('in_s_r').value), start_hour: parseInt(document.getElementById('in_s_start').value), end_hour: parseInt(document.getElementById('in_s_end').value), people_count: parseInt(document.getElementById('in_s_ppl').value), temperature_c: parseFloat(document.getElementById('in_s_temp').value), humidity: parseFloat(document.getElementById('in_s_hum').value) }) });
-                document.getElementById('out_s').textContent = JSON.stringify(res, null, 2);
-            } catch (e) { document.getElementById('out_s').textContent = "Lỗi: " + e.message; }
-        }
-
-        document.getElementById('buildingSelect').addEventListener('change', async (e) => {
-            const buildingId = e.target.value;
-            if (buildingId) await Promise.all([loadFloors(buildingId), loadRooms(buildingId)]);
+  <script>
+    const $ = id => document.getElementById(id);
+    let chartBars=null, chartPie=null, chartLoad=null, latestResult=null, allBuildings=[], allFloors=[], allRooms=[], currentRules=[];
+    let currentPeriod='daily', visiblePanels=new Set(), stageLevel=0;
+    const vietnamDate = date => new Intl.DateTimeFormat('vi-VN',{weekday:'long',year:'numeric',month:'long',day:'numeric'}).format(date);
+    const localIso = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    function updateToday(){const now=new Date();$('todayLabel').textContent=vietnamDate(now);updateRangeLabel();}
+    function log(message){const box=$('logOutput');box.textContent+=`\n[${new Date().toLocaleTimeString('vi-VN')}] ${message}`;box.scrollTop=box.scrollHeight;}
+    function setStatus(ok,message=''){const el=$('statusBadge');el.textContent=ok?'Đang hoạt động':'Mất kết nối';el.classList.toggle('offline',!ok);if(message)log(message);}
+    function fmt(value,unit=''){const number=Number(value)||0;return number.toLocaleString('vi-VN',{maximumFractionDigits:2})+(unit?' '+unit:'');}
+    async function apiCall(url,options={}){
+      if(location.protocol==='file:')throw new Error('Trang đang mở trực tiếp dưới dạng tệp. Hãy chạy main.cpp, chọn 10, rồi mở http://localhost:8080 để dùng dữ liệu.');
+      try{
+        const response=await fetch(url,options);
+        let data={};try{data=await response.json()}catch{}
+        if(!response.ok)throw new Error(data.error||`Lỗi máy chủ (${response.status})`);
+        return data;
+      }catch(error){
+        if(error instanceof TypeError)throw new Error('Không kết nối được máy chủ C++ tại localhost:8080. Hãy chạy main.cpp, chọn 10, rồi thử lại.');
+        throw error;
+      }
+    }
+    const post=(url,body)=>apiCall(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const del=url=>apiCall(url,{method:'DELETE'});
+    function addOption(select,label,value='',data={}){const option=document.createElement('option');option.value=value;option.textContent=label;Object.entries(data).forEach(([key,val])=>option.dataset[key]=val??'');select.appendChild(option);}
+    function fillSelect(selectId,rows,placeholder,selected=''){const select=$(selectId);select.innerHTML='';addOption(select,placeholder,'');rows.forEach(row=>addOption(select,row.name,row.id,{name:row.name,...row}));if(selected&&[...select.options].some(o=>o.value===String(selected)))select.value=String(selected);}
+    function selectedName(selectId){return $(selectId).selectedOptions[0]?.textContent||'';}
+    function activeRange(period=currentPeriod){const now=new Date();const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());let end=new Date(start);if(period==='weekly'){const day=(start.getDay()+6)%7;start.setDate(start.getDate()-day);end=new Date(start);end.setDate(start.getDate()+6)}else if(period==='monthly'){start.setDate(1);end=new Date(now.getFullYear(),now.getMonth()+1,0)}return {start,end};}
+    function dateList(period){const range=activeRange(period),dates=[];for(let d=new Date(range.start);d<=range.end;d.setDate(d.getDate()+1))dates.push(localIso(d));return dates;}
+    function rangeLabel(period=currentPeriod){const {start,end}=activeRange(period);const f=d=>new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d);if(period==='daily')return `Ngày ${f(start)}`;return `${period==='weekly'?'Tuần':'Tháng'} ${f(start)} – ${f(end)}`;}
+    function updateRangeLabel(){$('dateRangeLabel').textContent=rangeLabel();$('reportPeriodLabel').textContent=`Phạm vi báo cáo: ${rangeLabel()}. Tổng điện được cộng theo từng ngày có lịch áp dụng.`;$('metricsTitle').textContent=currentPeriod==='daily'?'Tiết kiệm ngày':currentPeriod==='weekly'?'Tiết kiệm tuần':'Tiết kiệm tháng';$('savedCostTitle').textContent=currentPeriod==='daily'?'Tiết kiệm ngày':currentPeriod==='weekly'?'Tiết kiệm tuần':'Tiết kiệm tháng';$('baseMetricTitle').textContent=currentPeriod==='monthly'?'Tổng điện ban đầu trong tháng':currentPeriod==='weekly'?'Tổng điện ban đầu trong tuần':'Tổng điện ban đầu trong ngày';}
+    function renderDatePickerElement(target,period,selectedDates=null,selectAllByDefault=true){
+      if(!target)return;
+      target.innerHTML='';
+      if(period==='daily'){
+        const note=document.createElement('p');
+        note.className='small-note';
+        note.textContent='Khoảng thời gian này lặp lại mỗi ngày.';
+        target.appendChild(note);
+        return;
+      }
+      const dates=dateList(period);
+      const initial=selectedDates||(selectAllByDefault?dates:[]);
+      const wrapper=document.createElement('div');
+      wrapper.className=period==='monthly'?'calendar-checks calendar-month':'calendar-checks';
+      if(period==='monthly'){
+        ['T2','T3','T4','T5','T6','T7','CN'].forEach(day=>{
+          const heading=document.createElement('span');
+          heading.className='calendar-heading';
+          heading.textContent=day;
+          wrapper.appendChild(heading);
         });
-        document.getElementById('roomSelect').addEventListener('change', (e) => {
-            const opt = e.target.options[e.target.selectedIndex];
-            if (opt && opt.dataset.strategy) document.getElementById('strategy').value = opt.dataset.strategy;
-        });
+        const first=new Date(dates[0]+'T00:00:00');
+        const offset=(first.getDay()+6)%7;
+        for(let i=0;i<offset;i++){
+          const blank=document.createElement('span');
+          blank.className='calendar-empty';
+          wrapper.appendChild(blank);
+        }
+      }
+      const weekdayNames=['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ nhật'];
+      dates.forEach(iso=>{
+        const date=new Date(iso+'T00:00:00');
+        const label=document.createElement('label');
+        label.className='date-choice';
+        const input=document.createElement('input');
+        input.type='checkbox';
+        input.value=iso;
+        input.checked=initial.includes(iso);
+        const text=period==='weekly'?weekdayNames[(date.getDay()+6)%7]:String(date.getDate());
+        label.append(input,document.createTextNode(text));
+        wrapper.appendChild(label);
+      });
+      const note=document.createElement('p');
+      note.className='small-note';
+      note.textContent=rangeLabel(period)+' · Chọn ngày áp dụng cho khoảng thời gian này.';
+      target.append(wrapper,note);
+    }
+    function renderDatePicker(containerId,period,selectedDates=null){
+      renderDatePickerElement($(containerId),period,selectedDates,true);
+    }
+    function checkedDatesIn(target){
+      if(!target)return [];
+      const inputs=[...target.querySelectorAll('input[type=checkbox]')];
+      return inputs.filter(input=>input.checked).map(input=>input.value);
+    }
+    function checkedDates(containerId){
+      return checkedDatesIn($(containerId));
+    }
+    async function loadBuildings(preferred=''){allBuildings=await apiCall('/api/buildings');fillSelect('buildingSelect',allBuildings,'Chọn tòa nhà',preferred||$('buildingSelect').value);for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])fillSelect(id,allBuildings,'Chọn tòa nhà',id=== 'in_st_b' ? $('in_st_b').value : '');await refreshHierarchy();}
+    async function refreshHierarchy(){
+      const b=$('buildingSelect').value||$('in_r_b').value||$('in_d_b').value||$('in_st_b').value;
+      allFloors=b?await apiCall(`/api/floors?building_id=${encodeURIComponent(b)}`):[];
+      allRooms=b?await apiCall(`/api/rooms?building_id=${encodeURIComponent(b)}`):[];
+      fillSelect('floorSelect',allFloors,'Toàn bộ tòa nhà',$('floorSelect').value);
+      for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])fillSelect(id,allBuildings,'Chọn tòa nhà',b);
+      for(const id of ['in_r_f','in_d_f','in_st_f'])fillSelect(id,allFloors,'Chọn tầng',$('floorSelect').value);
+      const visibleRooms=allRooms.filter(r=>!$('floorSelect').value||String(r.floor_id)===String($('floorSelect').value));
+      const deviceRooms=allRooms.filter(r=>!$('in_d_f').value||String(r.floor_id)===String($('in_d_f').value));
+      fillSelect('roomSelect',visibleRooms,'Toàn bộ tầng',$('roomSelect').value);
+      fillSelect('in_d_r',deviceRooms,'Chọn phòng',$('in_d_r').value||$('roomSelect').value);
+      fillSelect('in_st_r',allRooms,'Chọn phòng',$('in_st_r').value||$('roomSelect').value);
+      fillSelect('deleteFloorSelect',allFloors,'Chọn tầng cần xóa');
+      fillSelect('deleteRoomSelect',allRooms,'Chọn phòng cần xóa');
+      updateStrategyScope();await loadDevicesForSelection();
+    }
+    async function loadDevicesForSelection(){const roomId=$('in_d_r').value;let rows=[];if(roomId){try{rows=await apiCall(`/api/devices?room_id=${encodeURIComponent(roomId)}`)}catch{}}fillSelect('deleteDeviceSelect',rows,'Chọn thiết bị cần xóa');}
+    function syncHierarchyFromConfig(){const b=$('buildingSelect').value;const f=$('floorSelect').value;const r=$('roomSelect').value;for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])$(id).value=b;for(const id of ['in_r_f','in_d_f','in_st_f'])$(id).value=f;for(const id of ['in_d_r','in_st_r'])$(id).value=r;refreshHierarchy().catch(e=>log(e.message));}
+    function setTheme(mode){
+      const dark=mode==='dark';
+      document.documentElement.dataset.theme=dark?'dark':'light';
+      const button=$('themeToggle');
+      button.textContent=dark?'☀️ Sáng':'🌙 Tối';
+      button.setAttribute('aria-pressed',String(dark));
+      button.setAttribute('aria-label',dark?'Chuyển sang chế độ sáng':'Bật chế độ tối');
+      try{localStorage.setItem('greengrid-theme',dark?'dark':'light')}catch{}
+      if(latestResult)renderLatestCharts();
+    }
+    function loadTheme(){
+      let saved='light';
+      try{saved=localStorage.getItem('greengrid-theme')||'light'}catch{}
+      setTheme(saved);
+    }
+    async function boot(){if(location.protocol==='file:')$('fileOriginNotice').classList.remove('hidden');updateToday();setInterval(updateToday,60000);try{await apiCall('/api/health');setStatus(true,'Đã kết nối với máy chủ C++.');await loadBuildings();}catch(e){setStatus(false,e.message)}$('scheduleList').innerHTML='';addScheduleSlot();renderDatePicker('strategyDatePicker','daily');updateDeviceForm();updateStrategyScope();}
 
-        window.onload = async () => {
-            log('Initializing dashboard...');
-            if (await checkHealth()) { await loadBuildings(); log('Dashboard ready'); }
-            else { log('Dashboard running in offline mode'); }
+    function closeAllPanels(){document.querySelectorAll('.content-panel').forEach(panel=>panel.classList.remove('show'));visiblePanels.clear();}
+    function closePanelGroup(ids){ids.forEach(id=>{const panel=$(id);panel.classList.remove('show');visiblePanels.delete(id)});}
+    // Click once/twice/thrice reveals the three tool groups. Dragging only rotates the model.
+    function revealStage(level){stageLevel=level;$('stageOneTabs').hidden=level<1;$('stageTwoTabs').hidden=level<2;$('periodPanel').classList.toggle('show',level>=3);$('closeStageTwo').hidden=level<2;$('closeStageThree').hidden=level<3;if(level===0)closeAllPanels();}
+    $('buildingStage').addEventListener('click',event=>{if(event.target.closest('button')||!event.target.closest('#cubeWrap'))return;if(wasDragged){wasDragged=false;return}revealStage(Math.min(3,stageLevel+1))});
+    $('closeStageOne').addEventListener('click',()=>revealStage(0));$('closeStageTwo').addEventListener('click',()=>{closePanelGroup(['reportPanel','dataPanel']);revealStage(1)});$('closeStageThree').addEventListener('click',()=>revealStage(2));
+    document.querySelectorAll('.orbit-tabs [data-panel]').forEach(button=>button.addEventListener('click',()=>openPanel(button.dataset.panel)));
+    document.querySelectorAll('.close-panel').forEach(button=>button.addEventListener('click',()=>{const panel=button.closest('.content-panel');panel.classList.remove('show');visiblePanels.delete(panel.id)}));
+    function openPanel(id){$('stageOneTabs').hidden=false;if(id==='reportPanel'||id==='dataPanel'){revealStage(Math.max(stageLevel,2))}visiblePanels.add(id);$(id).classList.add('show');if(id==='reportPanel')createReport();if(id==='dataPanel')refreshHierarchy().catch(e=>log(e.message));if(id==='savingsPanel'&&latestResult)updateMetrics(latestResult);}
+    document.querySelectorAll('.period-btn').forEach(button=>button.addEventListener('click',()=>{currentPeriod=button.dataset.period;document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active',b===button));updateRangeLabel();if(latestResult)runSimulation();}));
+    document.querySelectorAll('.orbit-tabs button[data-panel]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.panel==='comparePanel'||button.dataset.panel==='sharePanel'||button.dataset.panel==='loadPanel')renderLatestCharts()}));
+
+    // The cube has six real 3D faces, with slow spin and mouse or touch dragging.
+    let rotationX=-20,rotationY=-28,dragStart=null,lastPointer=null,wasDragged=false;const wrap=$('cubeWrap'),model=$('cubeModel');
+    function drawCube(){if(!dragStart)rotationY+=.045;model.style.transform=`rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;requestAnimationFrame(drawCube)}requestAnimationFrame(drawCube);
+    wrap.addEventListener('pointerdown',e=>{dragStart={x:e.clientX,y:e.clientY};lastPointer={x:e.clientX,y:e.clientY};wasDragged=false;wrap.classList.add('dragging');wrap.setPointerCapture(e.pointerId)});
+    wrap.addEventListener('pointermove',e=>{if(!dragStart)return;const dx=e.clientX-lastPointer.x,dy=e.clientY-lastPointer.y;if(Math.abs(e.clientX-dragStart.x)+Math.abs(e.clientY-dragStart.y)>5)wasDragged=true;rotationY+=dx*.65;rotationX=Math.max(-70,Math.min(70,rotationX-dy*.55));lastPointer={x:e.clientX,y:e.clientY}});
+    wrap.addEventListener('pointerup',e=>{dragStart=null;wrap.classList.remove('dragging');if(wasDragged)e.stopPropagation()});wrap.addEventListener('pointercancel',()=>{dragStart=null;wrap.classList.remove('dragging')});
+
+    function updateDeviceForm(){const type=$('in_d_type').value;const defaults={light:[40,4,0],ac:[1200,3,5],fan:[75,2,3],computer:[300,2,1],projector:[250,3,1],refrigerator:[150,0,2],tv:[100,3,0],other:[100,2,2]}[type];$('in_d_type_other').hidden=type!=='other';$('in_d_power').value=defaults[0];$('in_d_os').value=defaults[1];$('in_d_ts').value=defaults[2];document.querySelectorAll('.setpoint-fields').forEach(el=>el.classList.toggle('hidden',type!=='ac'));}
+    function addScheduleSlot(){
+      const type=$('in_d_type').value;
+      const row=document.createElement('div');
+      row.className='schedule-row';
+      row.innerHTML=
+        '<div class="schedule-top">'+
+          '<label>Bắt đầu <input class="sch-start" type="number" min="0" max="23" step="1" value="7" required></label>'+
+          '<label>Kết thúc <input class="sch-end" type="number" min="0" max="24" step="1" value="8" required></label>'+
+          '<button type="button" class="remove-slot" title="Xóa khoảng giờ">×</button>'+
+        '</div>'+
+        '<div class="schedule-details">'+
+          '<label>Số người<input class="sch-people" type="number" min="0" value="0"></label>'+
+          '<label>Nhiệt độ phòng hiện tại (°C)<input class="sch-temp" type="number" step="0.1" value="25"></label>'+
+          '<label class="setpoint-fields '+(type==='ac'?'':'hidden')+'">Nhiệt độ cài đặt của AC (°C)<input class="sch-set" type="number" step="0.1" value="24"></label>'+
+        '</div>'+
+        '<div class="schedule-apply">'+
+          '<label>Lịch áp dụng cho khoảng giờ này</label>'+
+          '<select class="sch-period">'+
+            '<option value="daily">Hằng ngày</option>'+
+            '<option value="weekly">Chọn ngày trong tuần này</option>'+
+            '<option value="monthly">Chọn ngày trong tháng này</option>'+
+          '</select>'+
+          '<div class="slot-date-picker"></div>'+
+        '</div>';
+      const periodSelect=row.querySelector('.sch-period');
+      const datePicker=row.querySelector('.slot-date-picker');
+      periodSelect.addEventListener('change',()=>renderDatePickerElement(datePicker,periodSelect.value,null,false));
+      row.querySelector('.remove-slot').onclick=()=>row.remove();
+      renderDatePickerElement(datePicker,'daily',null,false);
+      $('scheduleList').appendChild(row);
+    }
+    function selectedDateValues(period,container){
+      if(period==='daily')return [];
+      return typeof container==='string'?checkedDates(container):checkedDatesIn(container);
+    }
+    function schedulePeriod(slot,attrs={}){
+      return slot.period||attrs.period||'daily';
+    }
+    function scheduleDates(slot,attrs={}){
+      if(Array.isArray(slot.active_dates))return slot.active_dates;
+      if(Array.isArray(attrs.active_dates))return attrs.active_dates;
+      return [];
+    }
+    function scheduleApplies(attrs,slot,date){
+      if(!slot.period&&!attrs.period&&Number(attrs.usage_days_per_week)<7){
+        const day=(new Date(date+'T00:00:00').getDay()+6)%7;
+        return day<Math.max(0,Math.min(7,Number(attrs.usage_days_per_week)||0));
+      }
+      const period=schedulePeriod(slot,attrs);
+      if(period==='daily')return true;
+      return scheduleDates(slot,attrs).includes(date);
+    }
+    function shiftIsoDate(iso,amount){
+      const date=new Date(iso+'T00:00:00');
+      date.setDate(date.getDate()+amount);
+      return localIso(date);
+    }
+    function scheduleStartDates(schedules){
+      const selected=[];
+      schedules.forEach(slot=>{
+        if(schedulePeriod(slot)!=='daily')selected.push(...scheduleDates(slot));
+      });
+      if(!selected.length)selected.push(localIso(new Date()));
+      const candidates=new Set();
+      selected.forEach(date=>{
+        candidates.add(shiftIsoDate(date,-1));
+        candidates.add(date);
+        candidates.add(shiftIsoDate(date,1));
+      });
+      return [...candidates];
+    }
+    function scheduleOccurrences(slot,startDates){
+      const occurrences=new Set();
+      for(const date of startDates){
+        if(schedulePeriod(slot)!=='daily'&&!scheduleDates(slot).includes(date))continue;
+        for(let hour=0;hour<24;hour++){
+          if(!slotOnAt([slot],hour))continue;
+          const start=Number(slot.start),end=Number(slot.end);
+          const actualDate=start>end&&hour<end?shiftIsoDate(date,1):date;
+          occurrences.add(actualDate+'|'+String(hour).padStart(2,'0'));
+        }
+      }
+      return occurrences;
+    }
+    function findScheduleConflict(schedules){
+      const startDates=scheduleStartDates(schedules);
+      for(let first=0;first<schedules.length;first++){
+        for(let second=first+1;second<schedules.length;second++){
+          const firstTimes=scheduleOccurrences(schedules[first],startDates);
+          const secondTimes=scheduleOccurrences(schedules[second],startDates);
+          for(const occurrence of firstTimes){
+            if(secondTimes.has(occurrence)){
+              const parts=occurrence.split('|');
+              return {first:first+1,second:second+1,date:parts[0],hour:Number(parts[1])};
+            }
+          }
+        }
+      }
+      return null;
+    }
+    async function addBuilding(){try{const result=await post('/api/buildings',{name:$('in_b_name').value.trim()});$('out_b').textContent=`Đã thêm ${result.name}.`;await loadBuildings(String(result.id));}catch(e){$('out_b').textContent=e.message}}
+    async function addFloor(){try{const result=await post('/api/floors',{building_id:Number($('in_f_b').value),name:$('in_f_name').value.trim()});$('out_f').textContent=`Đã thêm tầng ${result.name}.`;await refreshHierarchy()}catch(e){$('out_f').textContent=e.message}}
+    async function addRoom(){try{const result=await post('/api/rooms',{floor_id:Number($('in_r_f').value),name:$('in_r_name').value.trim(),capacity:Number($('in_r_cap').value)||10});$('out_r').textContent=`Đã thêm phòng ${result.name}.`;await refreshHierarchy()}catch(e){$('out_r').textContent=e.message}}
+    async function addDevice(){
+      try{
+        const rows=[...document.querySelectorAll('#scheduleList .schedule-row')];
+        const schedule=rows.map(row=>{
+          const period=row.querySelector('.sch-period').value;
+          const temperature=Number(row.querySelector('.sch-temp').value);
+          return {
+            start:Number(row.querySelector('.sch-start').value),
+            end:Number(row.querySelector('.sch-end').value),
+            people_count:Number(row.querySelector('.sch-people').value)||0,
+            temperature_c:Number.isFinite(temperature)?temperature:25,
+            current_temperature:Number.isFinite(temperature)?temperature:25,
+            set_temperature:Number(row.querySelector('.sch-set')?.value)||24,
+            period,
+            active_dates:selectedDateValues(period,row.querySelector('.slot-date-picker'))
+          };
+        });
+        if(!schedule.length)throw new Error('Thêm ít nhất một khoảng thời gian hoạt động.');
+        for(let i=0;i<schedule.length;i++){
+          const slot=schedule[i];
+          if(!Number.isInteger(slot.start)||slot.start<0||slot.start>23)throw new Error('Khoảng '+(i+1)+': giờ bắt đầu phải từ 0 đến 23.');
+          if(!Number.isInteger(slot.end)||slot.end<0||slot.end>24)throw new Error('Khoảng '+(i+1)+': giờ kết thúc phải từ 0 đến 24.');
+          if(slot.start===slot.end)throw new Error('Khoảng '+(i+1)+': giờ bắt đầu và kết thúc không được giống nhau.');
+          if(slot.period!=='daily'&&!slot.active_dates.length)throw new Error('Hãy chọn ít nhất một ngày cho khoảng thời gian '+(i+1)+'.');
+        }
+        const conflict=findScheduleConflict(schedule);
+        if(conflict){
+          const date=new Date(conflict.date+'T00:00:00');
+          const dateText=new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit'}).format(date);
+          const hourText=String(conflict.hour).padStart(2,'0')+':00';
+          throw new Error('Khoảng thời gian '+conflict.first+' và '+conflict.second+' bị trùng vào '+dateText+' lúc '+hourText+'. Hãy đổi giờ hoặc bỏ chọn ngày bị trùng rồi thử lại.');
+        }
+        const deviceType=$('in_d_type').value==='other'
+          ?($('in_d_type_other').value.trim()||'other')
+          :$('in_d_type').value;
+        const attrs={
+          device_type:deviceType,
+          rated_power_w:Number($('in_d_power').value)||0,
+          occupancy_sensitivity:Math.max(0,Math.min(5,Number($('in_d_os').value)||0)),
+          temp_sensitivity:Math.max(0,Math.min(5,Number($('in_d_ts').value)||0)),
+          period:'daily',
+          active_dates:[],
+          schedule,
+          usage_days_per_week:7
         };
-    </script>
+        if(deviceType==='light'){attrs.daylight_sensitive=true;attrs.daylight_threshold=500}
+        const result=await post('/api/devices',{
+          room_id:Number($('in_d_r').value),
+          device_name:$('in_d_name').value.trim(),
+          attributes:attrs
+        });
+        $('out_d').textContent='Đã thêm thiết bị '+result.name+'.';
+        await loadDevicesForSelection();
+      }catch(error){
+        $('out_d').textContent=error.message;
+      }
+    }
+    async function deleteBuilding(){const id=$('buildingSelect').value;if(!id)return $('out_b').textContent='Chọn tòa nhà cần xóa trong cấu hình.';if(!confirm(`Xóa tòa nhà “${selectedName('buildingSelect')}” cùng dữ liệu bên trong?`))return;try{await del(`/api/buildings/${id}`);$('out_b').textContent='Đã xóa tòa nhà.';await loadBuildings()}catch(e){$('out_b').textContent=e.message}}
+    async function deleteFloor(){const id=$('deleteFloorSelect').value;if(!id)return $('out_f').textContent='Chọn tầng cần xóa.';try{await del(`/api/floors/${id}`);$('out_f').textContent='Đã xóa tầng.';await refreshHierarchy()}catch(e){$('out_f').textContent=e.message}}
+    async function deleteRoom(){const id=$('deleteRoomSelect').value;if(!id)return $('out_r').textContent='Chọn phòng cần xóa.';try{await del(`/api/rooms/${id}`);$('out_r').textContent='Đã xóa phòng.';await refreshHierarchy()}catch(e){$('out_r').textContent=e.message}}
+    async function deleteDevice(){const id=$('deleteDeviceSelect').value;if(!id)return $('out_d').textContent='Chọn thiết bị cần xóa.';try{await del(`/api/devices/${id}`);$('out_d').textContent='Đã xóa thiết bị.';await loadDevicesForSelection()}catch(e){$('out_d').textContent=e.message}}
+    function updateStrategyScope(){const scope=$('in_st_scope').value;$('in_st_f').classList.toggle('hidden',scope==='building');$('in_st_r').classList.toggle('hidden',scope!=='room');if(scope==='room'){const floorId=$('in_st_f').value;const rooms=allRooms.filter(room=>!floorId||String(room.floor_id)===String(floorId));fillSelect('in_st_r',rooms,'Chọn phòng',$('in_st_r').value)}}
+    async function setScopeStrategy(){try{const period=$('strategyPeriod').value;const body={buildingId:Number($('in_st_b').value),floorId:$('in_st_scope').value==='building'?0:Number($('in_st_f').value),roomId:$('in_st_scope').value==='room'?Number($('in_st_r').value):0,strategy:$('in_st_strategy').value,period,active_dates:selectedDateValues(period,'strategyDatePicker')};const result=await post('/api/strategy/scope',body);$('out_st').textContent=`Đã lưu ${result.strategy_name} cho ${result.scope_name} (${period}).`;await loadRules()}catch(e){$('out_st').textContent=e.message}}
+    async function loadRules(){const id=$('buildingSelect').value||$('in_st_b').value;if(!id){currentRules=[];return}try{currentRules=await apiCall(`/api/strategy/rules?building_id=${encodeURIComponent(id)}`)}catch(e){currentRules=[];log(`Không tải được chiến lược riêng: ${e.message}`)}}
+    function ruleApplies(rule,date){if((rule.period||'daily')==='daily')return true;let dates=rule.active_dates;if(typeof dates==='string'){try{dates=JSON.parse(dates)}catch{dates=[]}}return Array.isArray(dates)&&dates.includes(date)}
+    function strategyForRoom(room,date,buildingStrategy,includeBuildingRule=false){const rules=currentRules.filter(rule=>ruleApplies(rule,date));const roomRule=rules.find(r=>Number(r.room_id)===Number(room.id));if(roomRule)return roomRule.strategy;const floorRule=rules.find(r=>Number(r.floor_id)===Number(room.floor_id)&&!Number(r.room_id));if(floorRule)return floorRule.strategy;if(includeBuildingRule){const buildingRule=rules.find(r=>!Number(r.floor_id)&&!Number(r.room_id));if(buildingRule)return buildingRule.strategy}return buildingStrategy}
+    function selectedScopeConflict(rooms,periodDates,chosen){const roomId=Number($('roomSelect').value),floorId=Number($('floorSelect').value);if(!roomId&&!floorId)return null;for(const date of periodDates){for(const room of rooms){if(roomId&&Number(room.id)!==roomId)continue;if(floorId&&!roomId&&Number(room.floor_id)!==floorId)continue;const saved=strategyForRoom(room,date,'normal',true);const explicit=currentRules.some(rule=>ruleApplies(rule,date)&&(Number(rule.room_id)===Number(room.id)||(Number(rule.floor_id)===Number(room.floor_id)&&!Number(rule.room_id))||(!Number(rule.floor_id)&&!Number(rule.room_id))));if(explicit&&saved!==chosen)return {room,date,strategy:saved};}}return null;}
+    function dateSetForReport(){return dateList(currentPeriod)}
+    function sensitivityValue(attrs,key,fallback){
+      const value=attrs[key];
+      if(value!==undefined&&value!==null&&Number.isFinite(Number(value)))return Math.max(0,Math.min(5,Number(value)));
+      return fallback;
+    }
+    function acDemandFactor(slot,setpointOverride=null){
+      const roomTemp=Number(slot.temperature_c)||25;
+      const setpoint=setpointOverride===null?(Number(slot.set_temperature)||24):setpointOverride;
+      if(roomTemp<=setpoint)return .35;
+      return Math.max(.55,Math.min(1,.55+(roomTemp-setpoint)*.035));
+    }
+    function strategyFactor(attrs,slot,capacity,hour,strategy){
+      const type=String(attrs.device_type||'other').toLowerCase();
+      const defaults={light:{occupancy:4,temperature:0},ac:{occupancy:3,temperature:5},fan:{occupancy:2,temperature:3},computer:{occupancy:2,temperature:1},projector:{occupancy:3,temperature:1},refrigerator:{occupancy:0,temperature:2},tv:{occupancy:3,temperature:0},other:{occupancy:2,temperature:2}};
+      const preset=defaults[type]||defaults.other;
+      const os=sensitivityValue(attrs,'occupancy_sensitivity',preset.occupancy);
+      const ts=sensitivityValue(attrs,'temp_sensitivity',preset.temperature);
+      const people=Number(slot.people_count)||0;
+      const occ=capacity>0?Math.min(1,Math.max(0,people/capacity)):1;
+      let occupancyFactor=1;
+      if(occ<=0)occupancyFactor=1-os*.12;
+      else if(occ<.3)occupancyFactor=1-os*.08;
+      else if(occ<.6)occupancyFactor=1-os*.04;
+      occupancyFactor=Math.max(.2,occupancyFactor);
+      let factor=1;
+      if(strategy==='eco'){
+        factor*=occupancyFactor;
+        if(type==='ac'&&ts>0){
+          const setpoint=Number(slot.set_temperature)||24;
+          factor*=acDemandFactor(slot,setpoint+ts/5)/acDemandFactor(slot);
+        }
+      }else if(strategy==='peak'&&hour>=18&&hour<21){
+        factor=1-Math.max(.05,.30-ts*.04);
+      }else if(strategy==='auto'){
+        factor*=occupancyFactor;
+        if(type==='ac'&&ts>0){
+          const setpoint=Number(slot.set_temperature)||24;
+          factor*=acDemandFactor(slot,setpoint+ts/5)/acDemandFactor(slot);
+        }
+      }
+      return Math.max(.1,Math.min(1,factor));
+    }
+    function slotOnAt(slots,hour){return slots.some(slot=>{const start=Number(slot.start),end=Number(slot.end);if(!Number.isFinite(start)||!Number.isFinite(end)||start===end)return false;return start<end?hour>=start&&hour<end:hour>=start||hour<end})}
+    function slotUsageDate(slot,startDate,hour){
+      const start=Number(slot.start),end=Number(slot.end);
+      if(start<end)return hour>=start&&hour<end?startDate:null;
+      if(start>end){
+        if(hour>=start)return startDate;
+        if(hour<end)return shiftIsoDate(startDate,1);
+      }
+      return null;
+    }
+    async function computePeriod(){
+      const buildingId=$('buildingSelect').value;
+      if(!buildingId)throw new Error('Vui lòng chọn tòa nhà trong Cấu hình hệ thống.');
+      const all=await apiCall('/api/rooms?building_id='+encodeURIComponent(buildingId));
+      let rooms=all;
+      if($('roomSelect').value)rooms=all.filter(room=>String(room.id)===$('roomSelect').value);
+      else if($('floorSelect').value)rooms=all.filter(room=>String(room.floor_id)===$('floorSelect').value);
+      const dates=dateSetForReport();
+      const reportDates=new Set(dates);
+      const startingDates=new Set(dates);
+      if(dates.length)startingDates.add(shiftIsoDate(dates[0],-1));
+      await loadRules();
+      const chosen=$('strategy').value;
+      const conflict=selectedScopeConflict(rooms,dates,chosen);
+      if(conflict)throw new Error(conflict.room.name+' đang dùng chiến lược '+strategyLabel(conflict.strategy)+'. Chọn đúng chiến lược hoặc chạy mô phỏng cho toàn bộ tòa nhà.');
+      const baseHours=new Array(24).fill(0),optHours=new Array(24).fill(0);
+      const baseByDate={},optimizedByDate={};
+      dates.forEach(date=>{baseByDate[date]=0;optimizedByDate[date]=0});
+      let deviceCount=0,activeHours=0,devicesWithoutSchedule=0;
+      const usedRules=[];
+      const deviceLists=await Promise.all(rooms.map(async room=>({
+        room,
+        devices:await apiCall('/api/devices?room_id='+encodeURIComponent(room.id))
+      })));
+      for(const item of deviceLists){
+        const room=item.room,capacity=Number(room.capacity)||10;
+        for(const device of item.devices){
+          deviceCount++;
+          const attrs=device.attributes||{};
+          const slots=Array.isArray(attrs.schedule)?attrs.schedule:[];
+          if(!slots.length){devicesWithoutSchedule++;continue}
+          const power=(Number(attrs.rated_power_w)||0)/1000;
+          const type=String(attrs.device_type||'other').toLowerCase();
+          for(const startDate of startingDates){
+            for(let hour=0;hour<24;hour++){
+              let slot=null,usageDate=null;
+              for(const candidate of slots){
+                if(!scheduleApplies(attrs,candidate,startDate))continue;
+                const candidateDate=slotUsageDate(candidate,startDate,hour);
+                if(!candidateDate||!reportDates.has(candidateDate))continue;
+                slot=candidate;
+                usageDate=candidateDate;
+                break;
+              }
+              if(!slot)continue;
+              activeHours++;
+              const strategy=strategyForRoom(room,usageDate,chosen);
+              if(strategy!==chosen)usedRules.push(room.floor+' / '+room.name+': '+strategyLabel(strategy));
+              const physicalFactor=type==='ac'?acDemandFactor(slot):1;
+              const beforeKwh=power*physicalFactor;
+              const afterKwh=beforeKwh*strategyFactor(attrs,slot,capacity,hour,strategy);
+              baseByDate[usageDate]+=beforeKwh;
+              optimizedByDate[usageDate]+=afterKwh;
+              baseHours[hour]+=beforeKwh;
+              optHours[hour]+=afterKwh;
+            }
+          }
+        }
+      }
+      const dailyBase=dates.map(date=>baseByDate[date]||0);
+      const dailyOptimized=dates.map(date=>optimizedByDate[date]||0);
+      const baseTotal=dailyBase.reduce((sum,value)=>sum+value,0);
+      const optTotal=dailyOptimized.reduce((sum,value)=>sum+value,0);
+      const saved=Math.max(0,baseTotal-optTotal);
+      const dailyLabels=dates.map(iso=>{
+        const date=new Date(iso+'T00:00:00');
+        return String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0');
+      });
+      const loadLabels=currentPeriod==='daily'
+        ?Array.from({length:24},(_,hour)=>String(hour).padStart(2,'0')+':00')
+        :dailyLabels;
+      const loadBase=currentPeriod==='daily'?baseHours:dailyBase;
+      const loadOptimized=currentPeriod==='daily'?optHours:dailyOptimized;
+      const loadUnit=currentPeriod==='daily'?'kWh/giờ':'kWh/ngày';
+      let warning='';
+      if(!deviceCount)warning='Phạm vi này chưa có thiết bị.';
+      else if(!activeHours)warning='Không có lịch thiết bị nào áp dụng trong khoảng ngày đã chọn.';
+      else if(devicesWithoutSchedule)warning=devicesWithoutSchedule+' thiết bị không có lịch hoạt động nên không được cộng điện.';
+      return {
+        baseTotal,optTotal,saved,baseHours,optHours,dailyBase,dailyOptimized,
+        loadLabels,loadBase,loadOptimized,loadUnit,dates,
+        rooms:rooms.length,devices:deviceCount,activeHours,
+        rules:[...new Set(usedRules)],strategy:chosen,range:rangeLabel(),
+        period:currentPeriod,warning
+      };
+    }
+    function strategyLabel(key){return ({normal:'Normal Mode',eco:'Eco Saving',peak:'Peak Shaving',auto:'Auto Adaptive'})[key]||key}
+    function updateMetrics(result){
+      $('lblBaseEnergy').textContent=fmt(result.baseTotal,'kWh');
+      $('lblOptEnergy').textContent=fmt(result.optTotal,'kWh');
+      $('lblSavedEnergy').textContent=fmt(result.saved,'kWh');
+      $('lblSavedCost').textContent=fmt(result.saved*(Number($('tariff').value)||3000),'VNĐ');
+      let subtitle=result.range+' · '+result.rooms+' phòng · '+result.devices+' thiết bị';
+      if(result.strategy==='normal')subtitle+=' · Normal Mode không áp dụng tối ưu nên hai mức bằng nhau.';
+      if(result.warning)subtitle+=' · '+result.warning;
+      $('metricsSubtitle').textContent=subtitle;
+    }
+    function chartOptions(unit){
+      const textColor=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
+      const gridColor=document.documentElement.dataset.theme==='dark'?'#31464d':'#e2e9ed';
+      return {
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'bottom',labels:{boxWidth:12,usePointStyle:true,color:textColor}},
+          tooltip:{callbacks:{label:context=>context.dataset.label+': '+fmt(context.parsed.y,unit)}}
+        },
+        scales:{
+          y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor},title:{display:true,text:unit,color:textColor}},
+          x:{grid:{display:false},ticks:{autoSkip:true,maxTicksLimit:currentPeriod==='monthly'?11:7,color:textColor}}
+        }
+      };
+    }
+    function renderLatestCharts(){
+      if(!latestResult)return;
+      const result=latestResult;
+      if(chartBars)chartBars.destroy();
+      chartBars=new Chart($('barChart'),{
+        type:'bar',
+        data:{labels:[result.range],datasets:[
+          {label:'Ban đầu · Normal Mode',data:[result.baseTotal],backgroundColor:'#a9bac0',borderRadius:7},
+          {label:'Sau tối ưu · '+strategyLabel(result.strategy),data:[result.optTotal],backgroundColor:'#138b80',borderRadius:7}
+        ]},
+        options:chartOptions('kWh')
+      });
+      if(chartPie)chartPie.destroy();
+      chartPie=new Chart($('pieChart'),{
+        type:'doughnut',
+        data:{labels:['Tiết kiệm','Điện còn dùng sau tối ưu'],datasets:[{
+          data:[result.saved,Math.max(0,result.optTotal)],
+          backgroundColor:['#16a17d','#dce7e8'],borderWidth:0,hoverOffset:5
+        }]},
+        options:{
+          responsive:true,maintainAspectRatio:false,cutout:'68%',
+          plugins:{
+            legend:{position:'bottom',labels:{color:getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()}},
+            tooltip:{callbacks:{label:context=>context.label+': '+fmt(context.parsed,'kWh')}}
+          }
+        }
+      });
+      if(chartLoad)chartLoad.destroy();
+      $('loadSubtitle').textContent=currentPeriod==='daily'
+        ?'Điện năng từng giờ trong ngày đã chọn.'
+        :currentPeriod==='weekly'
+          ?'Tổng điện theo từng ngày trong tuần đã chọn.'
+          :'Tổng điện theo từng ngày của tháng hiện tại ('+result.dates.length+' ngày).';
+      chartLoad=new Chart($('lineChart'),{
+        type:'line',
+        data:{labels:result.loadLabels,datasets:[
+          {
+            label:'Trước tối ưu · Normal Mode',
+            data:result.loadBase,borderColor:'#82979e',backgroundColor:'transparent',
+            borderDash:[6,4],fill:false,tension:.2,pointRadius:currentPeriod==='daily'?1.5:3,
+            pointHoverRadius:5,pointStyle:'rectRot',order:1
+          },
+          {
+            label:'Sau tối ưu · '+strategyLabel(result.strategy),
+            data:result.loadOptimized,borderColor:'#10877b',backgroundColor:'transparent',
+            fill:false,tension:.2,pointRadius:currentPeriod==='daily'?2:3.5,
+            pointHoverRadius:5,pointStyle:'circle',order:2
+          }
+        ]},
+        options:chartOptions(result.loadUnit)
+      });
+    }
+    function createReport(){if(!latestResult){$('reportOutput').textContent='Chọn phạm vi, khoảng thời gian rồi chạy mô phỏng để tạo báo cáo.';return}const r=latestResult;let text=`BÁO CÁO NĂNG LƯỢNG\n${r.range}\nTòa nhà: ${selectedName('buildingSelect')}\n`;if($('floorSelect').value)text+=`Tầng: ${selectedName('floorSelect')}\n`;if($('roomSelect').value)text+=`Phòng: ${selectedName('roomSelect')}\n`;text+=`\nSố ngày được cộng: ${r.dates.length}\nTổng điện ban đầu: ${fmt(r.baseTotal,'kWh')}\nĐiện sau tối ưu: ${fmt(r.optTotal,'kWh')}\nĐiện năng giảm được: ${fmt(r.saved,'kWh')}\nChi phí tiết kiệm: ${fmt(r.saved*(Number($('tariff').value)||3000),'VNĐ')}\nChiến lược mô phỏng: ${strategyLabel(r.strategy)}\nPhòng: ${r.rooms} · Thiết bị: ${r.devices}`;if(r.rules.length)text+=`\n\nChiến lược riêng được giữ nguyên:\n• ${r.rules.join('\n• ')}`;$('reportOutput').textContent=text;}
+    async function runSimulation(){
+      try{
+        $('runSimulationBtn').disabled=true;
+        $('runSimulationBtn').textContent='Đang tính…';
+        latestResult=await computePeriod();
+        updateMetrics(latestResult);
+        renderLatestCharts();
+        createReport();
+        $('buildingCaption').textContent=$('roomSelect').value
+          ?selectedName('roomSelect')
+          :($('floorSelect').value?selectedName('floorSelect'):selectedName('buildingSelect'));
+        log('Hoàn tất '+latestResult.range+': '+fmt(latestResult.baseTotal)+' → '+fmt(latestResult.optTotal)+' kWh; tiết kiệm '+fmt(latestResult.saved)+' kWh.');
+        if(latestResult.rules.length)log('Giữ nguyên chiến lược riêng: '+latestResult.rules.join('; '));
+        if(latestResult.warning)log(latestResult.warning);
+      }catch(error){
+        log('Không thể chạy mô phỏng: '+error.message);
+        alert(error.message);
+      }finally{
+        $('runSimulationBtn').disabled=false;
+        $('runSimulationBtn').textContent='Chạy mô phỏng Strategy';
+      }
+    }
+    $('runSimulationBtn').addEventListener('click',runSimulation);$('refreshReportBtn').addEventListener('click',createReport);
+    $('buildingSelect').addEventListener('change',async()=>{await refreshHierarchy();syncHierarchyFromConfig();$('buildingCaption').textContent=selectedName('buildingSelect')||'Tổng quan tòa nhà';latestResult=null;});$('floorSelect').addEventListener('change',()=>{refreshHierarchy().catch(e=>log(e.message));});$('roomSelect').addEventListener('change',()=>loadRules().catch(()=>{}));
+    for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])$(id).addEventListener('change',()=>refreshHierarchy().catch(e=>log(e.message)));$('in_st_f').addEventListener('change',updateStrategyScope);$('in_d_f').addEventListener('change',()=>{const rooms=allRooms.filter(r=>!$('in_d_f').value||String(r.floor_id)===String($('in_d_f').value));fillSelect('in_d_r',rooms,'Chọn phòng');loadDevicesForSelection().catch(()=>{})});for(const id of ['in_d_r','deleteDeviceSelect'])$(id).addEventListener('change',()=>loadDevicesForSelection().catch(()=>{}));
+    $('strategyPeriod').addEventListener('change',()=>renderDatePicker('strategyDatePicker',$('strategyPeriod').value));
+    loadTheme();
+    $('themeToggle').addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+    window.addEventListener('DOMContentLoaded',boot);
+  </script>
 </body>
 </html>
