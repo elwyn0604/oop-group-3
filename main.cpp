@@ -929,6 +929,33 @@ public:
     }
 };
 
+void ensureStrategyRulesTable(DbContext& db) {
+    string sql =
+        "CREATE TABLE IF NOT EXISTS strategy_rules ("
+        "id INT NOT NULL AUTO_INCREMENT,"
+        "scope_type ENUM('building','floor','room') NOT NULL,"
+        "building_id INT NOT NULL,"
+        "floor_id INT DEFAULT NULL,"
+        "room_id INT DEFAULT NULL,"
+        "strategy VARCHAR(30) NOT NULL DEFAULT 'normal',"
+        "period ENUM('daily','weekly','monthly') NOT NULL DEFAULT 'daily',"
+        "active_dates JSON DEFAULT NULL,"
+        "created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,"
+        "updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+        "PRIMARY KEY (id),"
+        "KEY strategy_building (building_id),"
+        "KEY strategy_floor (floor_id),"
+        "KEY strategy_room (room_id),"
+        "CONSTRAINT strategy_rules_building_fk FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,"
+        "CONSTRAINT strategy_rules_floor_fk FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE,"
+        "CONSTRAINT strategy_rules_room_fk FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+    if (mysql_query(db.get(), sql.c_str())) {
+        throw runtime_error("Cannot prepare strategy rules: " + string(mysql_error(db.get())));
+    }
+}
+
 vector<vector<string>> executeQuery(MYSQL* conn, const string& sql) {
     if (mysql_query(conn, sql.c_str())) {
         throw runtime_error("Loi SQL: " + string(mysql_error(conn)));
@@ -1074,43 +1101,93 @@ Building* loadBuildingFromDB(DbContext& db, int buildingId) {
 // =====================================================
 // INSERT / UPDATE FUNCTIONS
 // =====================================================
-int insertBuilding(DbContext& db, const string& code, const string& name) {
+string makeUniqueName(DbContext& db, const string& table, const string& parentColumn,
+                      int parentId, const string& requestedName) {
+    string base = requestedName;
+    string candidate = base;
+    string nameColumn = table == "devices" ? "device_name" : "name";
+    int suffix = 1;
+
+    while (true) {
+        string sql = "SELECT COUNT(*) FROM " + table + " WHERE " + nameColumn + " = '" + db.escape(candidate) + "'";
+        if (parentId > 0 && !parentColumn.empty()) {
+            sql += " AND " + parentColumn + " = " + to_string(parentId);
+        }
+        auto rows = executeQuery(db.get(), sql);
+        if (rows.empty() || safeGetInt(rows[0][0]) == 0) return candidate;
+
+        candidate = base + " #" + to_string(suffix);
+        suffix++;
+    }
+}
+
+string nextBuildingCode(DbContext& db) {
+    auto rows = executeQuery(db.get(), "SELECT COUNT(*) FROM buildings");
+    int nextNumber = rows.empty() ? 1 : safeGetInt(rows[0][0]) + 1;
+    string code;
+
+    while (true) {
+        code = "BLDG-" + to_string(nextNumber++);
+        auto found = executeQuery(db.get(),
+            "SELECT COUNT(*) FROM buildings WHERE building_code = '" + db.escape(code) + "'");
+        if (found.empty() || safeGetInt(found[0][0]) == 0) return code;
+    }
+}
+
+int insertBuilding(DbContext& db, const string& code, const string& requestedName,
+                   string* savedName = nullptr) {
+    string name = makeUniqueName(db, "buildings", "", 0, requestedName);
+    string buildingCode = code.empty() ? nextBuildingCode(db) : code;
     string sql =
         "INSERT INTO buildings (building_code, name) VALUES ('" +
-        db.escape(code) + "', '" + db.escape(name) + "')";
+        db.escape(buildingCode) + "', '" + db.escape(name) + "')";
 
     if (mysql_query(db.get(), sql.c_str())) return -1;
+
+    if (savedName) *savedName = name;
 
     return (int)mysql_insert_id(db.get());
 }
 
-int insertFloor(DbContext& db, int b_id, const string& code, const string& name) {
+int insertFloor(DbContext& db, int b_id, const string& code, const string& requestedName,
+                string* savedName = nullptr) {
+    string name = makeUniqueName(db, "floors", "", 0, requestedName);
     string sql =
         "INSERT INTO floors (building_id, floor_code, name) VALUES (" +
-        to_string(b_id) + ", '" + db.escape(code) + "', '" + db.escape(name) + "')";
+        to_string(b_id) + ", '" + db.escape(code.empty() ? name : code) + "', '" + db.escape(name) + "')";
 
     if (mysql_query(db.get(), sql.c_str())) return -1;
+
+    if (savedName) *savedName = name;
 
     return (int)mysql_insert_id(db.get());
 }
 
-int insertRoom(DbContext& db, int f_id, const string& code, const string& name, int capacity) {
+int insertRoom(DbContext& db, int f_id, const string& code, const string& requestedName,
+               int capacity, string* savedName = nullptr) {
+    string name = makeUniqueName(db, "rooms", "", 0, requestedName);
     string sql =
         "INSERT INTO rooms (floor_id, room_code, name, capacity) VALUES (" +
-        to_string(f_id) + ", '" + db.escape(code) + "', '" + db.escape(name) + "', " +
+        to_string(f_id) + ", '" + db.escape(code.empty() ? name : code) + "', '" + db.escape(name) + "', " +
         to_string(capacity) + ")";
 
     if (mysql_query(db.get(), sql.c_str())) return -1;
 
+    if (savedName) *savedName = name;
+
     return (int)mysql_insert_id(db.get());
 }
 
-int insertDevice(DbContext& db, int r_id, const string& name, const json& attrs) {
+int insertDevice(DbContext& db, int r_id, const string& requestedName, const json& attrs,
+                 string* savedName = nullptr) {
+    string name = makeUniqueName(db, "devices", "", 0, requestedName);
     string sql =
         "INSERT INTO devices (room_id, device_name, attributes) VALUES (" +
         to_string(r_id) + ", '" + db.escape(name) + "', '" + db.escape(attrs.dump()) + "')";
 
     if (mysql_query(db.get(), sql.c_str())) return -1;
+
+    if (savedName) *savedName = name;
 
     return (int)mysql_insert_id(db.get());
 }
@@ -1254,6 +1331,13 @@ inline string bodyString(const json& body, const string& key, const string& def)
 void startHttpServer() {
     httplib::Server svr;
 
+    try {
+        DbContext db;
+        ensureStrategyRulesTable(db);
+    } catch (const exception& e) {
+        cerr << "Database setup warning: " << e.what() << "\n";
+    }
+
     // Serve static files, including index.html
     svr.set_mount_point("/", ".");
 
@@ -1273,6 +1357,7 @@ void startHttpServer() {
             DbContext db;
 
             auto rows = executeQuery(db.get(), "SELECT COUNT(*) FROM buildings");
+            executeQuery(db.get(), "SELECT COUNT(*) FROM strategy_rules");
 
             int buildingCount = 0;
 
@@ -1488,6 +1573,7 @@ void startHttpServer() {
                 "FROM devices d "
                 "JOIN rooms r ON d.room_id = r.id "
                 "WHERE d.room_id = " + to_string(safeGetInt(roomId)) +
+                " AND d.status = 'active' " +
                 " ORDER BY d.id";
 
             auto rows = executeQuery(db.get(), sql);
@@ -1529,10 +1615,10 @@ void startHttpServer() {
             string code = bodyString(body, "code", "");
             string name = bodyString(body, "name", "");
 
-            if (code.empty() || name.empty()) {
+            if (name.empty()) {
                 res.status = 400;
                 res.set_content(
-                    json{{"error", "code and name are required"}}.dump(),
+                    json{{"error", "name is required"}}.dump(),
                     "application/json"
                 );
                 return;
@@ -1540,7 +1626,8 @@ void startHttpServer() {
 
             DbContext db;
 
-            int id = insertBuilding(db, code, name);
+            string savedName;
+            int id = insertBuilding(db, code, name, &savedName);
 
             if (id <= 0) {
                 res.status = 500;
@@ -1552,7 +1639,7 @@ void startHttpServer() {
             }
 
             res.set_content(
-                json{{"success", true}, {"id", id}}.dump(),
+                json{{"success", true}, {"id", id}, {"name", savedName}}.dump(),
                 "application/json"
             );
         } catch (const exception& e) {
@@ -1572,10 +1659,10 @@ void startHttpServer() {
             string code = bodyString(body, "code", "");
             string name = bodyString(body, "name", "");
 
-            if (buildingId <= 0 || code.empty() || name.empty()) {
+            if (buildingId <= 0 || name.empty()) {
                 res.status = 400;
                 res.set_content(
-                    json{{"error", "building_id, code, name are required"}}.dump(),
+                    json{{"error", "building_id and name are required"}}.dump(),
                     "application/json"
                 );
                 return;
@@ -1583,7 +1670,8 @@ void startHttpServer() {
 
             DbContext db;
 
-            int id = insertFloor(db, buildingId, code, name);
+            string savedName;
+            int id = insertFloor(db, buildingId, code, name, &savedName);
 
             if (id <= 0) {
                 res.status = 500;
@@ -1595,7 +1683,7 @@ void startHttpServer() {
             }
 
             res.set_content(
-                json{{"success", true}, {"id", id}}.dump(),
+                json{{"success", true}, {"id", id}, {"name", savedName}}.dump(),
                 "application/json"
             );
         } catch (const exception& e) {
@@ -1616,10 +1704,10 @@ void startHttpServer() {
             string name = bodyString(body, "name", "");
             int capacity = bodyInt(body, "capacity", 10);
 
-            if (floorId <= 0 || code.empty() || name.empty()) {
+            if (floorId <= 0 || name.empty()) {
                 res.status = 400;
                 res.set_content(
-                    json{{"error", "floor_id, code, name are required"}}.dump(),
+                    json{{"error", "floor_id and name are required"}}.dump(),
                     "application/json"
                 );
                 return;
@@ -1629,7 +1717,8 @@ void startHttpServer() {
 
             DbContext db;
 
-            int id = insertRoom(db, floorId, code, name, capacity);
+            string savedName;
+            int id = insertRoom(db, floorId, code, name, capacity, &savedName);
 
             if (id <= 0) {
                 res.status = 500;
@@ -1641,7 +1730,7 @@ void startHttpServer() {
             }
 
             res.set_content(
-                json{{"success", true}, {"id", id}}.dump(),
+                json{{"success", true}, {"id", id}, {"name", savedName}}.dump(),
                 "application/json"
             );
         } catch (const exception& e) {
@@ -1677,7 +1766,8 @@ void startHttpServer() {
 
             DbContext db;
 
-            int id = insertDevice(db, roomId, deviceName, attributes);
+            string savedName;
+            int id = insertDevice(db, roomId, deviceName, attributes, &savedName);
 
             if (id <= 0) {
                 res.status = 500;
@@ -1689,7 +1779,7 @@ void startHttpServer() {
             }
 
             res.set_content(
-                json{{"success", true}, {"id", id}}.dump(),
+                json{{"success", true}, {"id", id}, {"name", savedName}}.dump(),
                 "application/json"
             );
         } catch (const exception& e) {
@@ -1700,14 +1790,151 @@ void startHttpServer() {
 
 
     // ------------------------------------------------------------
+    // STRATEGY RULES BY BUILDING, FLOOR, OR ROOM
+    // ------------------------------------------------------------
+    svr.Get("/api/strategy/rules", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            int buildingId = safeGetInt(req.get_param_value("building_id"));
+            if (buildingId <= 0) {
+                res.status = 400;
+                res.set_content(json{{"error", "building_id is required"}}.dump(), "application/json");
+                return;
+            }
+
+            DbContext db;
+            string sql =
+                "SELECT sr.id, sr.scope_type, sr.building_id, sr.floor_id, sr.room_id, "
+                "sr.strategy, sr.period, CAST(sr.active_dates AS CHAR), b.name, f.name, r.name "
+                "FROM strategy_rules sr "
+                "JOIN buildings b ON b.id = sr.building_id "
+                "LEFT JOIN floors f ON f.id = sr.floor_id "
+                "LEFT JOIN rooms r ON r.id = sr.room_id "
+                "WHERE sr.building_id = " + to_string(buildingId) +
+                " ORDER BY sr.id";
+
+            auto rows = executeQuery(db.get(), sql);
+            json result = json::array();
+            for (const auto& row : rows) {
+                json activeDates = json::array();
+                if (!row[7].empty()) {
+                    activeDates = json::parse(row[7], nullptr, false);
+                    if (!activeDates.is_array()) activeDates = json::array();
+                }
+
+                json item;
+                item["id"] = safeGetInt(row[0]);
+                item["scope_type"] = row[1];
+                item["building_id"] = safeGetInt(row[2]);
+                item["floor_id"] = row[3].empty() ? 0 : safeGetInt(row[3]);
+                item["room_id"] = row[4].empty() ? 0 : safeGetInt(row[4]);
+                item["strategy"] = row[5];
+                item["period"] = row[6];
+                item["active_dates"] = activeDates;
+                item["building_name"] = row[8];
+                item["floor_name"] = row[9];
+                item["room_name"] = row[10];
+                result.push_back(item);
+            }
+            res.set_content(result.dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
+    svr.Post("/api/strategy/scope", [](const httplib::Request& req, httplib::Response& res) {
+        try {
+            json body = parseJsonBody(req);
+            int buildingId = bodyInt(body, "buildingId", 0);
+            int floorId = bodyInt(body, "floorId", 0);
+            int roomId = bodyInt(body, "roomId", 0);
+            string strategy = normalizeStrategyKey(bodyString(body, "strategy", "normal"));
+            string period = bodyString(body, "period", "daily");
+            json activeDates = body.contains("active_dates") && body["active_dates"].is_array()
+                ? body["active_dates"] : json::array();
+
+            if (buildingId <= 0 || (period != "daily" && period != "weekly" && period != "monthly") ||
+                (roomId > 0 && floorId <= 0) || (floorId > 0 && roomId == 0 && buildingId <= 0) ||
+                (period != "daily" && activeDates.empty())) {
+                res.status = 400;
+                res.set_content(json{{"error", "Choose a valid scope, period, and active dates."}}.dump(), "application/json");
+                return;
+            }
+
+            string scope = roomId > 0 ? "room" : (floorId > 0 ? "floor" : "building");
+            DbContext db;
+            string scopeName;
+
+            if (roomId > 0) {
+                string roomSql =
+                    "SELECT r.name FROM rooms r JOIN floors f ON f.id = r.floor_id "
+                    "WHERE r.id = " + to_string(roomId) + " AND f.building_id = " + to_string(buildingId);
+                if (floorId > 0) roomSql += " AND r.floor_id = " + to_string(floorId);
+                auto rows = executeQuery(db.get(), roomSql);
+                if (rows.empty()) throw runtime_error("The selected room does not belong to this building.");
+                scopeName = rows[0][0];
+            } else if (floorId > 0) {
+                auto rows = executeQuery(db.get(),
+                    "SELECT name FROM floors WHERE id = " + to_string(floorId) +
+                    " AND building_id = " + to_string(buildingId));
+                if (rows.empty()) throw runtime_error("The selected floor does not belong to this building.");
+                scopeName = rows[0][0];
+            } else {
+                auto rows = executeQuery(db.get(),
+                    "SELECT name FROM buildings WHERE id = " + to_string(buildingId));
+                if (rows.empty()) throw runtime_error("The selected building does not exist.");
+                scopeName = rows[0][0];
+            }
+
+            string removeSql = "DELETE FROM strategy_rules WHERE building_id = " + to_string(buildingId);
+            if (roomId > 0) removeSql += " AND room_id = " + to_string(roomId);
+            else if (floorId > 0) removeSql += " AND floor_id = " + to_string(floorId) + " AND room_id IS NULL";
+            else removeSql += " AND floor_id IS NULL AND room_id IS NULL";
+
+            if (mysql_query(db.get(), removeSql.c_str())) throw runtime_error(mysql_error(db.get()));
+
+            string datesJson = db.escape(activeDates.dump());
+            string sql = "INSERT INTO strategy_rules "
+                "(scope_type, building_id, floor_id, room_id, strategy, period, active_dates) VALUES ('" +
+                scope + "', " + to_string(buildingId) + ", " +
+                (floorId > 0 ? to_string(floorId) : "NULL") + ", " +
+                (roomId > 0 ? to_string(roomId) : "NULL") + ", '" + db.escape(strategy) + "', '" +
+                db.escape(period) + "', '" + datesJson + "')";
+
+            if (mysql_query(db.get(), sql.c_str())) throw runtime_error(mysql_error(db.get()));
+
+            string strategyName = strategy == "eco" ? "Eco Saving" :
+                strategy == "peak" ? "Peak Shaving" :
+                strategy == "auto" ? "Auto Adaptive" : "Normal Mode";
+            res.set_content(json{{"success", true}, {"strategy", strategy},
+                {"strategy_name", strategyName}, {"scope_name", scopeName}, {"scope_type", scope}}
+                .dump(), "application/json");
+        } catch (const exception& e) {
+            res.status = 500;
+            res.set_content(json{{"error", e.what()}}.dump(), "application/json");
+        }
+    });
+
+    // ------------------------------------------------------------
     // DELETE BUILDING
     // ------------------------------------------------------------
     svr.Delete(R"(/api/buildings/(\d+))", [](const httplib::Request& req, httplib::Response& res) {
         try {
             int id = stoi(req.matches[1]);
             DbContext db;
-            string sql = "DELETE FROM buildings WHERE id = " + to_string(id);
-            if (mysql_query(db.get(), sql.c_str())) {
+            vector<string> queries = {
+                "DELETE FROM strategy_rules WHERE building_id = " + to_string(id),
+                "DELETE FROM room_states WHERE room_id IN (SELECT id FROM rooms WHERE floor_id IN (SELECT id FROM floors WHERE building_id = " + to_string(id) + "))",
+                "DELETE FROM devices WHERE room_id IN (SELECT id FROM rooms WHERE floor_id IN (SELECT id FROM floors WHERE building_id = " + to_string(id) + "))",
+                "DELETE FROM rooms WHERE floor_id IN (SELECT id FROM floors WHERE building_id = " + to_string(id) + ")",
+                "DELETE FROM floors WHERE building_id = " + to_string(id),
+                "DELETE FROM buildings WHERE id = " + to_string(id)
+            };
+            bool failed = false;
+            for (const string& sql : queries) {
+                if (mysql_query(db.get(), sql.c_str())) { failed = true; break; }
+            }
+            if (failed) {
                 res.status = 500;
                 res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
                 return;
@@ -1726,8 +1953,18 @@ void startHttpServer() {
         try {
             int id = stoi(req.matches[1]);
             DbContext db;
-            string sql = "DELETE FROM floors WHERE id = " + to_string(id);
-            if (mysql_query(db.get(), sql.c_str())) {
+            vector<string> queries = {
+                "DELETE FROM strategy_rules WHERE floor_id = " + to_string(id) + " OR room_id IN (SELECT id FROM rooms WHERE floor_id = " + to_string(id) + ")",
+                "DELETE FROM room_states WHERE room_id IN (SELECT id FROM rooms WHERE floor_id = " + to_string(id) + ")",
+                "DELETE FROM devices WHERE room_id IN (SELECT id FROM rooms WHERE floor_id = " + to_string(id) + ")",
+                "DELETE FROM rooms WHERE floor_id = " + to_string(id),
+                "DELETE FROM floors WHERE id = " + to_string(id)
+            };
+            bool failed = false;
+            for (const string& sql : queries) {
+                if (mysql_query(db.get(), sql.c_str())) { failed = true; break; }
+            }
+            if (failed) {
                 res.status = 500;
                 res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
                 return;
@@ -1746,8 +1983,17 @@ void startHttpServer() {
         try {
             int id = stoi(req.matches[1]);
             DbContext db;
-            string sql = "DELETE FROM rooms WHERE id = " + to_string(id);
-            if (mysql_query(db.get(), sql.c_str())) {
+            vector<string> queries = {
+                "DELETE FROM strategy_rules WHERE room_id = " + to_string(id),
+                "DELETE FROM room_states WHERE room_id = " + to_string(id),
+                "DELETE FROM devices WHERE room_id = " + to_string(id),
+                "DELETE FROM rooms WHERE id = " + to_string(id)
+            };
+            bool failed = false;
+            for (const string& sql : queries) {
+                if (mysql_query(db.get(), sql.c_str())) { failed = true; break; }
+            }
+            if (failed) {
                 res.status = 500;
                 res.set_content(json{{"error", mysql_error(db.get())}}.dump(), "application/json");
                 return;
@@ -2067,7 +2313,7 @@ void startHttpServer() {
     cout << "   HTTP API SERVER STARTED\n";
     cout << "========================================\n";
     cout << "Server running at: http://localhost:8080\n";
-    cout << "Open index.html in browser or navigate to http://localhost:8080\n";
+    cout << "Open http://localhost:8080 in your browser to use the dashboard and C++ API.\n";
     cout << "Press Ctrl+C to stop\n";
     cout << "========================================\n";
 
@@ -2078,324 +2324,20 @@ void startHttpServer() {
 // MAIN MENU
 // =====================================================
 int main() {
-    try {
-        DbContext db;
-
-        int choice;
-
-        while (true) {
-            cout << "\n========================================\n";
-            cout << "   HE THONG QUAN LY NANG LUONG (EMS)\n";
-            cout << "========================================\n";
-            cout << "1. Bao cao tieu thu dien\n";
-            cout << "2. Them Toa nha moi\n";
-            cout << "3. Them Tang moi\n";
-            cout << "4. Them Phong moi\n";
-            cout << "5. Them Thiet bi moi\n";
-            cout << "6. Cap nhat trang thai phong theo gio\n";
-            cout << "7. Chon che do toi uu nang luong cho Phong\n";
-            cout << "10. Khoi dong HTTP API Server (Web Dashboard)\n";
-            cout << "0. Thoat\n";
-            cout << "----------------------------------------\n";
-
-            choice = getIntInput("Moi ban chon: ");
-
-            if (choice == 0) break;
-
-            if (choice == 1) {
-                cout << "\n--- CHON LOAI BAO CAO ---\n";
-                cout << "1. Bao cao ngay (chi tiet theo gio)\n";
-                cout << "2. Bao cao tuan\n";
-                cout << "3. Bao cao thang\n";
-                cout << "0. Quay lai\n";
-
-                int reportType = getIntInput("Moi chon: ");
-
-                if (reportType == 0) continue;
-
-                if (reportType < 1 || reportType > 3) {
-                    cout << ">> Lua chon khong hop le.\n";
-                    continue;
-                }
-
-                int b_id = getIntInput("Nhap ID Toa nha: ");
-
-                Building* building = loadBuildingFromDB(db, b_id);
-
-                if (!building) {
-                    cout << ">> Khong tim thay Toa nha.\n";
-                } else {
-                    int mode = reportType - 1;
-
-                    cout << "\n=== ENERGY HIERARCHY ===\n";
-                    building->printTree(0, mode);
-
-                    if (mode == 0) {
-                        cout << "\n=== CHI TIET THEO GIO (BAO CAO NGAY) ===\n";
-                        building->printDetailDaily();
-                    }
-
-                    double total;
-                    string label;
-
-                    if (mode == 0) {
-                        total = building->getDailyKwh();
-                        label = "Daily";
-                    } else if (mode == 1) {
-                        total = building->getWeeklyKwh();
-                        label = "Weekly";
-                    } else {
-                        total = building->getMonthlyKwh();
-                        label = "Monthly";
-                    }
-
-                    cout << fixed << setprecision(2);
-                    cout << "\nTotal " << label << " kWh: " << total << "\n";
-
-                    delete building;
-                }
-            }
-
-            else if (choice == 2) {
-                string code = getStringInput("Ma toa nha: ");
-                string name = getStringInput("Ten toa nha: ");
-
-                int new_id = insertBuilding(db, code, name);
-
-                if (new_id > 0) {
-                    cout << ">> Tao thanh cong! ID: " << new_id << "\n";
-                } else {
-                    cout << ">> Tao that bai.\n";
-                }
-            }
-
-            else if (choice == 3) {
-                int b_id = getIntInput("Nhap ID Toa nha chua tang: ");
-                string code = getStringInput("Ma tang: ");
-                string name = getStringInput("Ten tang: ");
-
-                int new_id = insertFloor(db, b_id, code, name);
-
-                if (new_id > 0) {
-                    cout << ">> Tao thanh cong! ID: " << new_id << "\n";
-                } else {
-                    cout << ">> Tao that bai.\n";
-                }
-            }
-
-            else if (choice == 4) {
-                listFloors(db);
-
-                int f_id = getIntInput(">> Nhap ID Tang: ");
-                string code = getStringInput("Ma phong: ");
-                string name = getStringInput("Ten phong: ");
-                int capacity = getIntInput("Suc chua toi da cua phong: ");
-
-                if (capacity <= 0) capacity = 1;
-
-                int new_id = insertRoom(db, f_id, code, name, capacity);
-
-                if (new_id > 0) {
-                    cout << ">> Tao thanh cong! ID: " << new_id << "\n";
-                } else {
-                    cout << ">> Tao that bai.\n";
-                }
-            }
-
-            else if (choice == 5) {
-                listRooms(db);
-
-                int r_id = getIntInput(">> Nhap ID Phong: ");
-                string dev_name = getStringInput("Ten thiet bi: ");
-
-                json attrs;
-
-                // Chon loai thiet bi tu danh sach co san
-                cout << "\n--- CHON LOAI THIET BI ---\n";
-                cout << "1. Light (Den)\n";
-                cout << "2. AC (Dieu hoa)\n";
-                cout << "3. Fan (Quat)\n";
-                cout << "4. Computer (May tinh)\n";
-                cout << "5. Projector (May chieu)\n";
-                cout << "6. Refrigerator (Tu lanh)\n";
-                cout << "7. TV (Tivi)\n";
-                cout << "8. Other (Khac)\n";
-                int typeChoice = getIntInput("Chon loai thiet bi: ");
-                
-                string device_type;
-                double defaultPower = 0;
-                switch(typeChoice) {
-                    case 1: device_type = "light"; defaultPower = 40; break;
-                    case 2: device_type = "ac"; defaultPower = 1200; break;
-                    case 3: device_type = "fan"; defaultPower = 75; break;
-                    case 4: device_type = "computer"; defaultPower = 300; break;
-                    case 5: device_type = "projector"; defaultPower = 250; break;
-                    case 6: device_type = "refrigerator"; defaultPower = 150; break;
-                    case 7: device_type = "tv"; defaultPower = 100; break;
-                    case 8: 
-                        device_type = getStringInput("Nhap ten loai thiet bi: "); 
-                        defaultPower = 100;
-                        break;
-                    default: 
-                        device_type = "other"; 
-                        defaultPower = 100;
-                        break;
-                }
-                
-                attrs["device_type"] = device_type;
-                
-                // Chon cong suat
-                cout << "\n--- CONG SUAT THIET BI ---\n";
-                cout << "Cong suat mac dinh goi y: " << defaultPower << " W\n";
-                cout << "1. Su dung cong suat mac dinh\n";
-                cout << "2. Nhap cong suat tuy chinh (W)\n";
-                int powerChoice = getIntInput("Chon: ");
-                if (powerChoice == 2) {
-                    attrs["rated_power_w"] = getDoubleInput("Nhap cong suat thiet bi (W): ");
-                } else {
-                    attrs["rated_power_w"] = defaultPower;
-                }
-                
-                attrs["usage_days_per_week"] = getDoubleInput("So ngay hoat dong moi tuan (0-7): ");
-
-                int tempSensitivity = clampInt(getIntInput("Muc nhay cam voi nhiet do (0-5): "), 0, 5);
-                int occupancySensitivity = clampInt(getIntInput("Muc nhay cam voi so nguoi (0-5): "), 0, 5);
-                int humiditySensitivity = clampInt(getIntInput("Muc nhay cam voi do am (0-5): "), 0, 5);
-
-                attrs["temp_sensitivity"] = tempSensitivity;
-                attrs["occupancy_sensitivity"] = occupancySensitivity;
-                attrs["humidity_sensitivity"] = humiditySensitivity;
-
-                // For simple Calculation / Decorator module
-                attrs["occupancy_sensitive"] = (occupancySensitivity > 0);
-                attrs["humidity_sensitive"] = (humiditySensitivity > 0);
-
-                if (containsAny(device_type, {"light", "den", "đèn"})) {
-                    attrs["daylight_sensitive"] = true;
-                    attrs["daylight_threshold"] = 500.0;
-                }
-
-                json schedule = json::array();
-                cout << "\n--- CAU HINH LICH HOAT DONG ---\n";
-                cout << "Ban co the them nhieu khoang thoi gian BAT khac nhau (cho phep ngat gio)\n";
-
-                while (true) {
-                    cout << "\n--- Them khoang thoi gian thiet bi BAT ---\n";
-
-                    int startHour = getIntInput("Gio bat dau (0-23): ");
-                    int endHour = getIntInput("Gio ket thuc (0-23): ");
-
-                    startHour = clampInt(startHour, 0, 23);
-                    endHour = clampInt(endHour, 0, 23);
-
-                    json slot;
-                    slot["start"] = startHour;
-                    slot["end"] = endHour;
-
-                    schedule.push_back(slot);
-
-                    cout << ">> Da them khoang BAT: " << startHour << "h -> " << endHour << "h\n";
-
-                    string more = getStringInput("Them khoang BAT khac (co the tao khoang tat giua)? (y/n): ");
-
-                    if (more != "y" && more != "Y") break;
-                }
-
-                attrs["schedule"] = schedule;
-
-                int new_id = insertDevice(db, r_id, dev_name, attrs);
-
-                if (new_id > 0) {
-                    cout << ">> Da them thiet bi thanh cong! ID: " << new_id << "\n";
-                } else {
-                    cout << ">> Them thiet bi that bai.\n";
-                }
-            }
-
-            else if (choice == 6) {
-                listRooms(db);
-
-                int r_id = getIntInput(">> Nhap ID Phong can cap nhat trang thai: ");
-
-                int startHour = getIntInput("Gio bat dau (0-23): ");
-                int endHour = getIntInput("Gio ket thuc (0-23): ");
-
-                startHour = clampInt(startHour, 0, 23);
-                endHour = clampInt(endHour, 0, 23);
-
-                if (endHour < startHour) swap(startHour, endHour);
-
-                int people = getIntInput("So nguoi trong phong: ");
-
-                if (people < 0) people = 0;
-
-                double temperature = getDoubleInput("Nhiet do moi truong (do C): ");
-                double humidity = getDoubleInput("Do am (%): ");
-                double lux = getDoubleInput("Anh sang tu nhien (Lux): ");
-
-                int updated = upsertRoomStates(
-                    db,
-                    r_id,
-                    startHour,
-                    endHour,
-                    people,
-                    temperature,
-                    humidity,
-                    lux
-                );
-
-                cout << ">> Da luu trang thai cho " << updated
-                     << " gio (tu " << startHour << "h den " << endHour << "h).\n";
-            }
-
-            else if (choice == 7) {
-                listRooms(db);
-
-                int r_id = getIntInput(">> Nhap ID Phong can doi che do: ");
-
-                cout << "\n--- CHON CHE DO TOI UU NANG LUONG ---\n";
-                cout << "1. Normal Mode\n";
-                cout << "2. Eco Saving\n";
-                cout << "3. Peak Shaving\n";
-                cout << "4. Auto Adaptive\n";
-
-                int sChoice = getIntInput("Moi chon: ");
-
-                string stratKey;
-
-                switch (sChoice) {
-                    case 1:
-                        stratKey = "normal";
-                        break;
-                    case 2:
-                        stratKey = "eco";
-                        break;
-                    case 3:
-                        stratKey = "peak";
-                        break;
-                    case 4:
-                        stratKey = "auto";
-                        break;
-                    default:
-                        cout << ">> Lua chon khong hop le.\n";
-                        continue;
-                }
-
-                if (updateRoomStrategy(db, r_id, stratKey)) {
-                    cout << ">> Da cap nhat che do nang luong cho phong thanh cong!\n";
-                } else {
-                    cout << ">> Cap nhat that bai.\n";
-                }
-            }
-
-            else if (choice == 10) {
-                startHttpServer();
-            }
+    while (true) {
+        cout << "\n========================================\n";
+        cout << "   GROUP 3 ENERGY MANAGEMENT\n";
+        cout << "========================================\n";
+        cout << "10. Mo bang dieu khien web\n";
+        cout << "0. Thoat\n";
+
+        int choice = getIntInput("Moi ban chon: ");
+        if (choice == 0) return 0;
+        if (choice == 10) {
+            startHttpServer();
+            return 0;
         }
-    } catch (const exception& e) {
-        cerr << "Loi: " << e.what() << "\n";
-        return 1;
-    }
 
-    return 0;
+        cout << "Lua chon khong hop le. Hay chon 10 hoac 0.\n";
+    }
 }
