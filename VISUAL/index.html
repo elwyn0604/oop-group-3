@@ -72,10 +72,11 @@
       <div class="field"><label for="buildingSelect">Tòa nhà</label><select id="buildingSelect"><option value="">Chọn tòa nhà</option></select></div>
       <div class="field"><label for="floorSelect">Tầng (tùy chọn)</label><select id="floorSelect"><option value="">Toàn bộ tòa nhà</option></select></div>
       <div class="field"><label for="roomSelect">Phòng (tùy chọn)</label><select id="roomSelect"><option value="">Toàn bộ tầng</option></select></div>
-      <div class="field"><label for="strategy">Chiến lược mô phỏng</label><select id="strategy" class="strategy-select"><option value="normal">Normal Mode</option><option value="eco" selected>Eco Saving</option><option value="peak">Peak Shaving</option><option value="auto">Auto Adaptive</option></select><p class="hint">Khi mô phỏng cả tòa nhà, chiến lược riêng đã lưu cho tầng hoặc phòng sẽ được giữ nguyên.</p></div>
+      <div class="field"><label for="strategy">Chiến lược mô phỏng</label><select id="strategy" class="strategy-select"><option value="normal">Normal Mode</option><option value="eco" selected>Eco Saving</option><option value="peak">Peak Shaving</option><option value="auto">Auto Adaptive</option></select><p class="hint">Chạy cả tòa nhà sẽ giữ chiến lược đã lưu. Chọn tầng/phòng để so sánh bằng chiến lược đang chọn.</p></div>
       <div class="field"><label for="tariff">Đơn giá điện (VNĐ/kWh)</label><input id="tariff" type="number" min="0" step="100" value="3000"></div>
       <div class="divider"></div><button class="primary" id="runSimulationBtn">Chạy mô phỏng Strategy</button>
-      <p class="hint" style="text-align:center;margin-top:10px">Chọn phạm vi, thời gian và chiến lược trước khi chạy.</p>
+      <button type="button" class="secondary" id="compareStrategyBtn" style="width:100%;margin-top:8px">So sánh phạm vi bằng chiến lược này</button>
+      <p class="hint" style="text-align:center;margin-top:10px">So sánh chỉ áp dụng tạm thời cho lần chạy này; các quy tắc Menu 7 vẫn được giữ nguyên.</p>
     </aside>
 
     <section class="workspace">
@@ -133,7 +134,7 @@
 
   <script>
     const $ = id => document.getElementById(id);
-    let chartBars=null, chartPie=null, chartLoad=null, latestResult=null, allBuildings=[], allFloors=[], allRooms=[], currentRules=[];
+    let chartBars=null, chartPie=null, chartLoad=null, latestResult=null, allBuildings=[], allFloors=[], allRooms=[], deviceRooms=[], strategyRooms=[], currentRules=[];
     let currentPeriod='daily', visiblePanels=new Set(), stageLevel=0;
     const vietnamDate = date => new Intl.DateTimeFormat('vi-VN',{weekday:'long',year:'numeric',month:'long',day:'numeric'}).format(date);
     const localIso = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
@@ -220,25 +221,68 @@
     function checkedDates(containerId){
       return checkedDatesIn($(containerId));
     }
-    async function loadBuildings(preferred=''){allBuildings=await apiCall('/api/buildings');fillSelect('buildingSelect',allBuildings,'Chọn tòa nhà',preferred||$('buildingSelect').value);for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])fillSelect(id,allBuildings,'Chọn tòa nhà',id=== 'in_st_b' ? $('in_st_b').value : '');await refreshHierarchy();}
+    async function loadBuildings(preferred=''){
+      allBuildings=await apiCall('/api/buildings');
+      fillSelect('buildingSelect',allBuildings,'Chọn tòa nhà',preferred||$('buildingSelect').value);
+      for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b']){
+        fillSelect(id,allBuildings,'Chọn tòa nhà',$(id).value);
+      }
+      await refreshHierarchy();
+      for(const kind of ['f','r','d','st'])await refreshFormHierarchy(kind);
+    }
+    async function loadBuildingData(buildingId){
+      if(!buildingId)return {floors:[],rooms:[]};
+      const [floors,rooms]=await Promise.all([
+        apiCall(`/api/floors?building_id=${encodeURIComponent(buildingId)}`),
+        apiCall(`/api/rooms?building_id=${encodeURIComponent(buildingId)}`)
+      ]);
+      return {floors,rooms};
+    }
     async function refreshHierarchy(){
-      const b=$('buildingSelect').value||$('in_r_b').value||$('in_d_b').value||$('in_st_b').value;
-      allFloors=b?await apiCall(`/api/floors?building_id=${encodeURIComponent(b)}`):[];
-      allRooms=b?await apiCall(`/api/rooms?building_id=${encodeURIComponent(b)}`):[];
+      const buildingId=$('buildingSelect').value;
+      const hierarchy=await loadBuildingData(buildingId);
+      allFloors=hierarchy.floors;
+      allRooms=hierarchy.rooms;
       fillSelect('floorSelect',allFloors,'Toàn bộ tòa nhà',$('floorSelect').value);
-      for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])fillSelect(id,allBuildings,'Chọn tòa nhà',b);
-      for(const id of ['in_r_f','in_d_f','in_st_f'])fillSelect(id,allFloors,'Chọn tầng',$('floorSelect').value);
-      const visibleRooms=allRooms.filter(r=>!$('floorSelect').value||String(r.floor_id)===String($('floorSelect').value));
-      const deviceRooms=allRooms.filter(r=>!$('in_d_f').value||String(r.floor_id)===String($('in_d_f').value));
+      const visibleRooms=allRooms.filter(room=>!$('floorSelect').value||String(room.floor_id)===String($('floorSelect').value));
       fillSelect('roomSelect',visibleRooms,'Toàn bộ tầng',$('roomSelect').value);
-      fillSelect('in_d_r',deviceRooms,'Chọn phòng',$('in_d_r').value||$('roomSelect').value);
-      fillSelect('in_st_r',allRooms,'Chọn phòng',$('in_st_r').value||$('roomSelect').value);
-      fillSelect('deleteFloorSelect',allFloors,'Chọn tầng cần xóa');
-      fillSelect('deleteRoomSelect',allRooms,'Chọn phòng cần xóa');
-      updateStrategyScope();await loadDevicesForSelection();
+    }
+    async function refreshFormHierarchy(kind){
+      const buildingId=$('in_'+kind+'_b').value;
+      const {floors,rooms}=await loadBuildingData(buildingId);
+      if(kind==='f'){
+        fillSelect('deleteFloorSelect',floors,'Chọn tầng cần xóa');
+        return;
+      }
+      if(kind==='r'){
+        fillSelect('in_r_f',floors,'Chọn tầng',$('in_r_f').value);
+        fillSelect('deleteRoomSelect',rooms,'Chọn phòng cần xóa');
+        return;
+      }
+      if(kind==='d'){
+        deviceRooms=rooms;
+        fillSelect('in_d_f',floors,'Chọn tầng',$('in_d_f').value);
+        const visibleRooms=deviceRooms.filter(room=>!$('in_d_f').value||String(room.floor_id)===String($('in_d_f').value));
+        fillSelect('in_d_r',visibleRooms,'Chọn phòng',$('in_d_r').value);
+        await loadDevicesForSelection();
+        return;
+      }
+      if(kind==='st'){
+        strategyRooms=rooms;
+        fillSelect('in_st_f',floors,'Chọn tầng',$('in_st_f').value);
+        updateStrategyScope();
+      }
+    }
+    async function refreshAfterStructureChange(kind){
+      const buildingId=$('in_'+kind+'_b').value;
+      for(const relatedKind of ['f','r','d','st']){
+        if(relatedKind===kind||$('in_'+relatedKind+'_b').value===buildingId){
+          await refreshFormHierarchy(relatedKind);
+        }
+      }
+      if(buildingId&&buildingId===$('buildingSelect').value)await refreshHierarchy();
     }
     async function loadDevicesForSelection(){const roomId=$('in_d_r').value;let rows=[];if(roomId){try{rows=await apiCall(`/api/devices?room_id=${encodeURIComponent(roomId)}`)}catch{}}fillSelect('deleteDeviceSelect',rows,'Chọn thiết bị cần xóa');}
-    function syncHierarchyFromConfig(){const b=$('buildingSelect').value;const f=$('floorSelect').value;const r=$('roomSelect').value;for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])$(id).value=b;for(const id of ['in_r_f','in_d_f','in_st_f'])$(id).value=f;for(const id of ['in_d_r','in_st_r'])$(id).value=r;refreshHierarchy().catch(e=>log(e.message));}
     function setTheme(mode){
       const dark=mode==='dark';
       document.documentElement.dataset.theme=dark?'dark':'light';
@@ -377,8 +421,8 @@
       return null;
     }
     async function addBuilding(){try{const result=await post('/api/buildings',{name:$('in_b_name').value.trim()});$('out_b').textContent=`Đã thêm ${result.name}.`;await loadBuildings(String(result.id));}catch(e){$('out_b').textContent=e.message}}
-    async function addFloor(){try{const result=await post('/api/floors',{building_id:Number($('in_f_b').value),name:$('in_f_name').value.trim()});$('out_f').textContent=`Đã thêm tầng ${result.name}.`;await refreshHierarchy()}catch(e){$('out_f').textContent=e.message}}
-    async function addRoom(){try{const result=await post('/api/rooms',{floor_id:Number($('in_r_f').value),name:$('in_r_name').value.trim(),capacity:Number($('in_r_cap').value)||10});$('out_r').textContent=`Đã thêm phòng ${result.name}.`;await refreshHierarchy()}catch(e){$('out_r').textContent=e.message}}
+    async function addFloor(){try{if(!$('in_f_b').value)throw new Error('Hãy chọn tòa nhà cần thêm tầng.');const result=await post('/api/floors',{building_id:Number($('in_f_b').value),name:$('in_f_name').value.trim()});$('out_f').textContent=`Đã thêm tầng ${result.name}.`;await refreshAfterStructureChange('f')}catch(e){$('out_f').textContent=e.message}}
+    async function addRoom(){try{if(!$('in_r_b').value)throw new Error('Hãy chọn tòa nhà cần thêm phòng.');if(!$('in_r_f').value)throw new Error('Hãy chọn tầng cần thêm phòng.');const result=await post('/api/rooms',{floor_id:Number($('in_r_f').value),name:$('in_r_name').value.trim(),capacity:Number($('in_r_cap').value)||10});$('out_r').textContent=`Đã thêm phòng ${result.name}.`;await refreshAfterStructureChange('r')}catch(e){$('out_r').textContent=e.message}}
     async function addDevice(){
       try{
         const rows=[...document.querySelectorAll('#scheduleList .schedule-row')];
@@ -437,15 +481,53 @@
       }
     }
     async function deleteBuilding(){const id=$('buildingSelect').value;if(!id)return $('out_b').textContent='Chọn tòa nhà cần xóa trong cấu hình.';if(!confirm(`Xóa tòa nhà “${selectedName('buildingSelect')}” cùng dữ liệu bên trong?`))return;try{await del(`/api/buildings/${id}`);$('out_b').textContent='Đã xóa tòa nhà.';await loadBuildings()}catch(e){$('out_b').textContent=e.message}}
-    async function deleteFloor(){const id=$('deleteFloorSelect').value;if(!id)return $('out_f').textContent='Chọn tầng cần xóa.';try{await del(`/api/floors/${id}`);$('out_f').textContent='Đã xóa tầng.';await refreshHierarchy()}catch(e){$('out_f').textContent=e.message}}
-    async function deleteRoom(){const id=$('deleteRoomSelect').value;if(!id)return $('out_r').textContent='Chọn phòng cần xóa.';try{await del(`/api/rooms/${id}`);$('out_r').textContent='Đã xóa phòng.';await refreshHierarchy()}catch(e){$('out_r').textContent=e.message}}
-    async function deleteDevice(){const id=$('deleteDeviceSelect').value;if(!id)return $('out_d').textContent='Chọn thiết bị cần xóa.';try{await del(`/api/devices/${id}`);$('out_d').textContent='Đã xóa thiết bị.';await loadDevicesForSelection()}catch(e){$('out_d').textContent=e.message}}
-    function updateStrategyScope(){const scope=$('in_st_scope').value;$('in_st_f').classList.toggle('hidden',scope==='building');$('in_st_r').classList.toggle('hidden',scope!=='room');if(scope==='room'){const floorId=$('in_st_f').value;const rooms=allRooms.filter(room=>!floorId||String(room.floor_id)===String(floorId));fillSelect('in_st_r',rooms,'Chọn phòng',$('in_st_r').value)}}
-    async function setScopeStrategy(){try{const period=$('strategyPeriod').value;const body={buildingId:Number($('in_st_b').value),floorId:$('in_st_scope').value==='building'?0:Number($('in_st_f').value),roomId:$('in_st_scope').value==='room'?Number($('in_st_r').value):0,strategy:$('in_st_strategy').value,period,active_dates:selectedDateValues(period,'strategyDatePicker')};const result=await post('/api/strategy/scope',body);$('out_st').textContent=`Đã lưu ${result.strategy_name} cho ${result.scope_name} (${period}).`;await loadRules()}catch(e){$('out_st').textContent=e.message}}
-    async function loadRules(){const id=$('buildingSelect').value||$('in_st_b').value;if(!id){currentRules=[];return}try{currentRules=await apiCall(`/api/strategy/rules?building_id=${encodeURIComponent(id)}`)}catch(e){currentRules=[];log(`Không tải được chiến lược riêng: ${e.message}`)}}
+    async function deleteFloor(){const id=$('deleteFloorSelect').value;if(!id)return $('out_f').textContent='Chọn tầng cần xóa.';try{await del(`/api/floors/${id}`);$('out_f').textContent='Đã xóa tầng.';await refreshAfterStructureChange('f')}catch(e){$('out_f').textContent=e.message}}
+    async function deleteRoom(){const id=$('deleteRoomSelect').value;if(!id)return $('out_r').textContent='Chọn phòng cần xóa.';try{await del(`/api/rooms/${id}`);$('out_r').textContent='Đã xóa phòng.';await refreshAfterStructureChange('r')}catch(e){$('out_r').textContent=e.message}}
+    async function deleteDevice(){const id=$('deleteDeviceSelect').value;if(!id)return $('out_d').textContent='Chọn thiết bị cần xóa.';const refreshCurrentReport=Boolean(latestResult&&$('in_d_b').value&&$('in_d_b').value===$('buildingSelect').value);try{await del(`/api/devices/${id}`);$('out_d').textContent='Đã xóa thiết bị.';await loadDevicesForSelection();if(refreshCurrentReport)await runSimulation()}catch(e){$('out_d').textContent=e.message}}
+    function updateStrategyScope(){const scope=$('in_st_scope').value;$('in_st_f').classList.toggle('hidden',scope==='building');$('in_st_r').classList.toggle('hidden',scope!=='room');if(scope==='room'){const floorId=$('in_st_f').value;const rooms=strategyRooms.filter(room=>!floorId||String(room.floor_id)===String(floorId));fillSelect('in_st_r',rooms,'Chọn phòng',$('in_st_r').value)}}
+    async function setScopeStrategy(){try{if(!$('in_st_b').value)throw new Error('Hãy chọn tòa nhà cần lưu chiến lược.');const period=$('strategyPeriod').value;const body={buildingId:Number($('in_st_b').value),floorId:$('in_st_scope').value==='building'?0:Number($('in_st_f').value),roomId:$('in_st_scope').value==='room'?Number($('in_st_r').value):0,strategy:$('in_st_strategy').value,period,active_dates:selectedDateValues(period,'strategyDatePicker')};const result=await post('/api/strategy/scope',body);$('out_st').textContent=`Đã lưu ${result.strategy_name} cho ${result.scope_name} (${period}).`;await loadRules(String(body.buildingId))}catch(e){$('out_st').textContent=e.message}}
+    async function loadRules(buildingId=''){const id=buildingId||$('buildingSelect').value||$('in_st_b').value;if(!id){currentRules=[];return}try{currentRules=await apiCall(`/api/strategy/rules?building_id=${encodeURIComponent(id)}`)}catch(e){currentRules=[];log(`Không tải được chiến lược riêng: ${e.message}`)}}
     function ruleApplies(rule,date){if((rule.period||'daily')==='daily')return true;let dates=rule.active_dates;if(typeof dates==='string'){try{dates=JSON.parse(dates)}catch{dates=[]}}return Array.isArray(dates)&&dates.includes(date)}
-    function strategyForRoom(room,date,buildingStrategy,includeBuildingRule=false){const rules=currentRules.filter(rule=>ruleApplies(rule,date));const roomRule=rules.find(r=>Number(r.room_id)===Number(room.id));if(roomRule)return roomRule.strategy;const floorRule=rules.find(r=>Number(r.floor_id)===Number(room.floor_id)&&!Number(r.room_id));if(floorRule)return floorRule.strategy;if(includeBuildingRule){const buildingRule=rules.find(r=>!Number(r.floor_id)&&!Number(r.room_id));if(buildingRule)return buildingRule.strategy}return buildingStrategy}
-    function selectedScopeConflict(rooms,periodDates,chosen){const roomId=Number($('roomSelect').value),floorId=Number($('floorSelect').value);if(!roomId&&!floorId)return null;for(const date of periodDates){for(const room of rooms){if(roomId&&Number(room.id)!==roomId)continue;if(floorId&&!roomId&&Number(room.floor_id)!==floorId)continue;const saved=strategyForRoom(room,date,'normal',true);const explicit=currentRules.some(rule=>ruleApplies(rule,date)&&(Number(rule.room_id)===Number(room.id)||(Number(rule.floor_id)===Number(room.floor_id)&&!Number(rule.room_id))||(!Number(rule.floor_id)&&!Number(rule.room_id))));if(explicit&&saved!==chosen)return {room,date,strategy:saved};}}return null;}
+    function strategyInfoForRoom(room,date,buildingStrategy){
+      const rules=currentRules.filter(rule=>ruleApplies(rule,date));
+      const roomRule=rules.find(rule=>Number(rule.room_id)===Number(room.id));
+      if(roomRule)return {strategy:roomRule.strategy,source:'room'};
+      const floorRule=rules.find(rule=>Number(rule.floor_id)===Number(room.floor_id)&&!Number(rule.room_id));
+      if(floorRule)return {strategy:floorRule.strategy,source:'floor'};
+      const buildingRule=rules.find(rule=>!Number(rule.floor_id)&&!Number(rule.room_id));
+      if(buildingRule)return {strategy:buildingRule.strategy,source:'building'};
+      return {strategy:buildingStrategy,source:'global'};
+    }
+    function summarizeRoomStrategies(rooms,dates,globalStrategy,comparisonMode=false){
+      const grouped=new Map();
+      for(const room of rooms){
+        for(const date of dates){
+          const info=comparisonMode
+            ?{strategy:globalStrategy,source:'comparison'}
+            :strategyInfoForRoom(room,date,globalStrategy);
+          const key=[room.id,info.source,info.strategy].join('|');
+          if(!grouped.has(key)){
+            grouped.set(key,{
+              id:room.id,
+              name:room.name,
+              floor:room.floor,
+              source:info.source,
+              strategy:info.strategy,
+              dates:[]
+            });
+          }
+          grouped.get(key).dates.push(date);
+        }
+      }
+      const assignments=[...grouped.values()];
+      const roomsUsingGlobal=new Set(
+        assignments.filter(item=>item.source==='global').map(item=>String(item.id))
+      ).size;
+      const globalRoomDays=assignments
+        .filter(item=>item.source==='global')
+        .reduce((total,item)=>total+item.dates.length,0);
+      return {assignments,roomsUsingGlobal,globalRoomDays};
+    }
     function dateSetForReport(){return dateList(currentPeriod)}
     function sensitivityValue(attrs,key,fallback){
       const value=attrs[key];
@@ -464,6 +546,7 @@
       const preset=defaults[type]||defaults.other;
       const os=sensitivityValue(attrs,'occupancy_sensitivity',preset.occupancy);
       const ts=sensitivityValue(attrs,'temp_sensitivity',preset.temperature);
+      const hs=sensitivityValue(attrs,'humidity_sensitivity',0);
       const people=Number(slot.people_count)||0;
       const occ=capacity>0?Math.min(1,Math.max(0,people/capacity)):1;
       let occupancyFactor=1;
@@ -481,10 +564,26 @@
       }else if(strategy==='peak'&&hour>=18&&hour<21){
         factor=1-Math.max(.05,.30-ts*.04);
       }else if(strategy==='auto'){
-        factor*=occupancyFactor;
+        // Auto Adaptive changes smoothly with occupancy instead of using Eco's fixed bands.
+        const adaptiveOccupancy=Math.max(.2,1-os*.10*(1-occ));
+        factor*=adaptiveOccupancy;
+        const roomTemp=Number(slot.temperature_c??slot.current_temperature??25);
+        if(ts>0){
+          if(roomTemp>=35)factor*=1+ts*.07;
+          else if(roomTemp>=30)factor*=1+ts*.05;
+          else if(roomTemp<=22)factor*=1-ts*.02;
+        }
+        const humidity=Number(slot.humidity??attrs.humidity??50);
+        if(hs>0&&humidity>60)factor*=1+hs*.01;
+        const daylightSensitive=Boolean(attrs.daylight_sensitive)&&['light','den','đèn'].includes(type);
+        const lightLux=Number(slot.light_lux??attrs.light_lux??300);
+        const daylightThreshold=Number(attrs.daylight_threshold)||500;
+        if(daylightSensitive&&lightLux>=daylightThreshold)factor*=.3;
+        else if(daylightSensitive&&lightLux>=daylightThreshold*.5)factor*=.6;
         if(type==='ac'&&ts>0){
           const setpoint=Number(slot.set_temperature)||24;
-          factor*=acDemandFactor(slot,setpoint+ts/5)/acDemandFactor(slot);
+          const adaptiveSetpoint=setpoint+Math.min(2,ts/5+Math.max(0,roomTemp-setpoint-2)*.1);
+          factor*=acDemandFactor(slot,adaptiveSetpoint)/acDemandFactor(slot);
         }
       }
       return Math.max(.1,Math.min(1,factor));
@@ -499,7 +598,7 @@
       }
       return null;
     }
-    async function computePeriod(){
+    async function computePeriod(compareAll=false){
       const buildingId=$('buildingSelect').value;
       if(!buildingId)throw new Error('Vui lòng chọn tòa nhà trong Cấu hình hệ thống.');
       const all=await apiCall('/api/rooms?building_id='+encodeURIComponent(buildingId));
@@ -510,15 +609,15 @@
       const reportDates=new Set(dates);
       const startingDates=new Set(dates);
       if(dates.length)startingDates.add(shiftIsoDate(dates[0],-1));
-      await loadRules();
+      await loadRules(buildingId);
       const chosen=$('strategy').value;
-      const conflict=selectedScopeConflict(rooms,dates,chosen);
-      if(conflict)throw new Error(conflict.room.name+' đang dùng chiến lược '+strategyLabel(conflict.strategy)+'. Chọn đúng chiến lược hoặc chạy mô phỏng cho toàn bộ tòa nhà.');
+      const comparisonMode=compareAll||Boolean($('floorSelect').value||$('roomSelect').value);
       const baseHours=new Array(24).fill(0),optHours=new Array(24).fill(0);
       const baseByDate={},optimizedByDate={};
       dates.forEach(date=>{baseByDate[date]=0;optimizedByDate[date]=0});
       let deviceCount=0,activeHours=0,devicesWithoutSchedule=0;
-      const usedRules=[];
+      const strategySummary=summarizeRoomStrategies(rooms,dates,chosen,comparisonMode);
+      const roomEnergy=new Map(rooms.map(room=>[String(room.id),{id:room.id,name:room.name,floor:room.floor,baseTotal:0,optTotal:0}]));
       const deviceLists=await Promise.all(rooms.map(async room=>({
         room,
         devices:await apiCall('/api/devices?room_id='+encodeURIComponent(room.id))
@@ -545,13 +644,15 @@
               }
               if(!slot)continue;
               activeHours++;
-              const strategy=strategyForRoom(room,usageDate,chosen);
-              if(strategy!==chosen)usedRules.push(room.floor+' / '+room.name+': '+strategyLabel(strategy));
+              const strategy=comparisonMode?chosen:strategyInfoForRoom(room,usageDate,chosen).strategy;
               const physicalFactor=type==='ac'?acDemandFactor(slot):1;
               const beforeKwh=power*physicalFactor;
               const afterKwh=beforeKwh*strategyFactor(attrs,slot,capacity,hour,strategy);
               baseByDate[usageDate]+=beforeKwh;
               optimizedByDate[usageDate]+=afterKwh;
+              const roomTotal=roomEnergy.get(String(room.id));
+              roomTotal.baseTotal+=beforeKwh;
+              roomTotal.optTotal+=afterKwh;
               baseHours[hour]+=beforeKwh;
               optHours[hour]+=afterKwh;
             }
@@ -581,11 +682,33 @@
         baseTotal,optTotal,saved,baseHours,optHours,dailyBase,dailyOptimized,
         loadLabels,loadBase,loadOptimized,loadUnit,dates,
         rooms:rooms.length,devices:deviceCount,activeHours,
-        rules:[...new Set(usedRules)],strategy:chosen,range:rangeLabel(),
-        period:currentPeriod,warning
+        roomStrategies:strategySummary.assignments,
+        roomsUsingGlobal:strategySummary.roomsUsingGlobal,
+        globalRoomDays:strategySummary.globalRoomDays,
+        totalRoomDays:rooms.length*dates.length,
+        roomEnergy:[...roomEnergy.values()].map(item=>({...item,saved:Math.max(0,item.baseTotal-item.optTotal)})),
+        strategy:chosen,comparisonMode,range:rangeLabel(),period:currentPeriod,warning
       };
     }
     function strategyLabel(key){return ({normal:'Normal Mode',eco:'Eco Saving',peak:'Peak Shaving',auto:'Auto Adaptive'})[key]||key}
+    function effectiveStrategyLabel(result){
+      if(result.comparisonMode)return strategyLabel(result.strategy)+' (so sánh tạm thời)';
+      const hasGlobal=result.roomStrategies.some(item=>item.source==='global');
+      const hasSaved=result.roomStrategies.some(item=>item.source!=='global');
+      if(hasGlobal&&hasSaved)return 'chiến lược kết hợp';
+      if(hasSaved)return 'chiến lược riêng theo phạm vi';
+      return strategyLabel(result.strategy);
+    }
+    function strategySourceLabel(source){
+      if(source==='room')return 'quy tắc riêng của phòng';
+      if(source==='floor')return 'quy tắc riêng của tầng';
+      if(source==='building')return 'quy tắc riêng của tòa nhà';
+      if(source==='comparison')return 'chiến lược tạm dùng để so sánh';
+      return 'chiến lược mặc định';
+    }
+    function reportDateLabel(iso){
+      return new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(iso+'T00:00:00'));
+    }
     function updateMetrics(result){
       $('lblBaseEnergy').textContent=fmt(result.baseTotal,'kWh');
       $('lblOptEnergy').textContent=fmt(result.optTotal,'kWh');
@@ -593,6 +716,7 @@
       $('lblSavedCost').textContent=fmt(result.saved*(Number($('tariff').value)||3000),'VNĐ');
       let subtitle=result.range+' · '+result.rooms+' phòng · '+result.devices+' thiết bị';
       if(result.strategy==='normal')subtitle+=' · Normal Mode không áp dụng tối ưu nên hai mức bằng nhau.';
+      if(result.comparisonMode)subtitle+=' · Đang so sánh tạm thời; chiến lược Menu 7 đã lưu vẫn giữ nguyên.';
       if(result.warning)subtitle+=' · '+result.warning;
       $('metricsSubtitle').textContent=subtitle;
     }
@@ -619,7 +743,7 @@
         type:'bar',
         data:{labels:[result.range],datasets:[
           {label:'Ban đầu · Normal Mode',data:[result.baseTotal],backgroundColor:'#a9bac0',borderRadius:7},
-          {label:'Sau tối ưu · '+strategyLabel(result.strategy),data:[result.optTotal],backgroundColor:'#138b80',borderRadius:7}
+          {label:'Sau tối ưu · '+effectiveStrategyLabel(result),data:[result.optTotal],backgroundColor:'#138b80',borderRadius:7}
         ]},
         options:chartOptions('kWh')
       });
@@ -654,7 +778,7 @@
             pointHoverRadius:5,pointStyle:'rectRot',order:1
           },
           {
-            label:'Sau tối ưu · '+strategyLabel(result.strategy),
+            label:'Sau tối ưu · '+effectiveStrategyLabel(result),
             data:result.loadOptimized,borderColor:'#10877b',backgroundColor:'transparent',
             fill:false,tension:.2,pointRadius:currentPeriod==='daily'?2:3.5,
             pointHoverRadius:5,pointStyle:'circle',order:2
@@ -663,12 +787,53 @@
         options:chartOptions(result.loadUnit)
       });
     }
-    function createReport(){if(!latestResult){$('reportOutput').textContent='Chọn phạm vi, khoảng thời gian rồi chạy mô phỏng để tạo báo cáo.';return}const r=latestResult;let text=`BÁO CÁO NĂNG LƯỢNG\n${r.range}\nTòa nhà: ${selectedName('buildingSelect')}\n`;if($('floorSelect').value)text+=`Tầng: ${selectedName('floorSelect')}\n`;if($('roomSelect').value)text+=`Phòng: ${selectedName('roomSelect')}\n`;text+=`\nSố ngày được cộng: ${r.dates.length}\nTổng điện ban đầu: ${fmt(r.baseTotal,'kWh')}\nĐiện sau tối ưu: ${fmt(r.optTotal,'kWh')}\nĐiện năng giảm được: ${fmt(r.saved,'kWh')}\nChi phí tiết kiệm: ${fmt(r.saved*(Number($('tariff').value)||3000),'VNĐ')}\nChiến lược mô phỏng: ${strategyLabel(r.strategy)}\nPhòng: ${r.rooms} · Thiết bị: ${r.devices}`;if(r.rules.length)text+=`\n\nChiến lược riêng được giữ nguyên:\n• ${r.rules.join('\n• ')}`;$('reportOutput').textContent=text;}
-    async function runSimulation(){
+    function createReport(){
+      if(!latestResult){
+        $('reportOutput').textContent='Chọn phạm vi, khoảng thời gian rồi chạy mô phỏng để tạo báo cáo.';
+        return;
+      }
+      const result=latestResult;
+      let text='BÁO CÁO NĂNG LƯỢNG\n'+result.range+'\nTòa nhà: '+selectedName('buildingSelect')+'\n';
+      if($('floorSelect').value)text+='Tầng: '+selectedName('floorSelect')+'\n';
+      if($('roomSelect').value)text+='Phòng: '+selectedName('roomSelect')+'\n';
+      text+='\nSố ngày được cộng: '+result.dates.length+
+        '\nTổng điện ban đầu: '+fmt(result.baseTotal,'kWh')+
+        '\nĐiện sau tối ưu: '+fmt(result.optTotal,'kWh')+
+        '\nĐiện năng giảm được: '+fmt(result.saved,'kWh')+
+        '\nChi phí tiết kiệm: '+fmt(result.saved*(Number($('tariff').value)||3000),'VNĐ')+
+        '\nPhòng: '+result.rooms+' · Thiết bị: '+result.devices;
+      if(result.comparisonMode){
+        text+='\n\nChế độ: So sánh nhanh'+
+          '\nChiến lược áp dụng tạm thời: '+strategyLabel(result.strategy)+' cho mọi phòng trong phạm vi.'+
+          '\nCác chiến lược đã lưu trong Menu 7 vẫn được giữ nguyên.';
+      }else{
+        text+='\n\nChiến lược mặc định được chọn: '+strategyLabel(result.strategy)+' (dùng cho phòng chưa có quy tắc riêng)'+
+          '\nPhòng có dùng chiến lược mặc định: '+result.roomsUsingGlobal+'/'+result.rooms+
+          '\nLượt phòng-ngày dùng mặc định: '+result.globalRoomDays+'/'+result.totalRoomDays;
+      }
+      text+='\nChiến lược thực tế theo phòng:';
+      for(const assignment of result.roomStrategies){
+        const dates=assignment.dates.map(reportDateLabel).join(', ');
+        const scopeName=assignment.floor+' / '+assignment.name;
+        text+='\n• '+scopeName+': '+strategyLabel(assignment.strategy)+
+          ' ('+strategySourceLabel(assignment.source)+'; '+dates+')';
+      }
+      text+='\n\nĐiện năng theo phòng:';
+      for(const room of result.roomEnergy){
+        text+='\n• '+room.floor+' / '+room.name+': '+
+          fmt(room.baseTotal,'kWh')+' → '+fmt(room.optTotal,'kWh')+
+          '; tiết kiệm '+fmt(room.saved,'kWh');
+      }
+      $('reportOutput').textContent=text;
+    }
+    async function runSimulation(compareAll=false){
+      const runButton=$('runSimulationBtn'),compareButton=$('compareStrategyBtn');
+      const activeButton=compareAll?compareButton:runButton;
+      runButton.disabled=true;
+      compareButton.disabled=true;
+      activeButton.textContent='Đang tính…';
       try{
-        $('runSimulationBtn').disabled=true;
-        $('runSimulationBtn').textContent='Đang tính…';
-        latestResult=await computePeriod();
+        latestResult=await computePeriod(compareAll);
         updateMetrics(latestResult);
         renderLatestCharts();
         createReport();
@@ -676,19 +841,25 @@
           ?selectedName('roomSelect')
           :($('floorSelect').value?selectedName('floorSelect'):selectedName('buildingSelect'));
         log('Hoàn tất '+latestResult.range+': '+fmt(latestResult.baseTotal)+' → '+fmt(latestResult.optTotal)+' kWh; tiết kiệm '+fmt(latestResult.saved)+' kWh.');
-        if(latestResult.rules.length)log('Giữ nguyên chiến lược riêng: '+latestResult.rules.join('; '));
+        if(latestResult.comparisonMode){
+          log('So sánh tạm thời bằng '+strategyLabel(latestResult.strategy)+'; chiến lược đã lưu vẫn được giữ nguyên.');
+        }else{
+          log('Chiến lược mặc định được dùng cho '+latestResult.roomsUsingGlobal+'/'+latestResult.rooms+' phòng.');
+        }
         if(latestResult.warning)log(latestResult.warning);
       }catch(error){
         log('Không thể chạy mô phỏng: '+error.message);
         alert(error.message);
       }finally{
-        $('runSimulationBtn').disabled=false;
-        $('runSimulationBtn').textContent='Chạy mô phỏng Strategy';
+        runButton.disabled=false;
+        compareButton.disabled=false;
+        runButton.textContent='Chạy mô phỏng Strategy';
+        compareButton.textContent='So sánh phạm vi bằng chiến lược này';
       }
     }
-    $('runSimulationBtn').addEventListener('click',runSimulation);$('refreshReportBtn').addEventListener('click',createReport);
-    $('buildingSelect').addEventListener('change',async()=>{await refreshHierarchy();syncHierarchyFromConfig();$('buildingCaption').textContent=selectedName('buildingSelect')||'Tổng quan tòa nhà';latestResult=null;});$('floorSelect').addEventListener('change',()=>{refreshHierarchy().catch(e=>log(e.message));});$('roomSelect').addEventListener('change',()=>loadRules().catch(()=>{}));
-    for(const id of ['in_f_b','in_r_b','in_d_b','in_st_b'])$(id).addEventListener('change',()=>refreshHierarchy().catch(e=>log(e.message)));$('in_st_f').addEventListener('change',updateStrategyScope);$('in_d_f').addEventListener('change',()=>{const rooms=allRooms.filter(r=>!$('in_d_f').value||String(r.floor_id)===String($('in_d_f').value));fillSelect('in_d_r',rooms,'Chọn phòng');loadDevicesForSelection().catch(()=>{})});for(const id of ['in_d_r','deleteDeviceSelect'])$(id).addEventListener('change',()=>loadDevicesForSelection().catch(()=>{}));
+    $('runSimulationBtn').addEventListener('click',()=>runSimulation(false));$('compareStrategyBtn').addEventListener('click',()=>runSimulation(true));$('refreshReportBtn').addEventListener('click',createReport);
+    $('buildingSelect').addEventListener('change',async()=>{await refreshHierarchy();$('buildingCaption').textContent=selectedName('buildingSelect')||'Tổng quan tòa nhà';latestResult=null;});$('floorSelect').addEventListener('change',()=>{refreshHierarchy().catch(e=>log(e.message));});$('roomSelect').addEventListener('change',()=>loadRules($('buildingSelect').value).catch(()=>{}));
+    $('in_f_b').addEventListener('change',()=>refreshFormHierarchy('f').catch(e=>log(e.message)));$('in_r_b').addEventListener('change',()=>refreshFormHierarchy('r').catch(e=>log(e.message)));$('in_d_b').addEventListener('change',()=>refreshFormHierarchy('d').catch(e=>log(e.message)));$('in_st_b').addEventListener('change',()=>refreshFormHierarchy('st').catch(e=>log(e.message)));$('in_st_f').addEventListener('change',updateStrategyScope);$('in_d_f').addEventListener('change',()=>{const rooms=deviceRooms.filter(room=>!$('in_d_f').value||String(room.floor_id)===String($('in_d_f').value));fillSelect('in_d_r',rooms,'Chọn phòng');loadDevicesForSelection().catch(()=>{})});$('in_d_r').addEventListener('change',()=>loadDevicesForSelection().catch(()=>{}));
     $('strategyPeriod').addEventListener('change',()=>renderDatePicker('strategyDatePicker',$('strategyPeriod').value));
     loadTheme();
     $('themeToggle').addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
