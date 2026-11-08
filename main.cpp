@@ -337,16 +337,8 @@ public:
         // Occupancy effect
         if (os > 0) {
             double occ = occupancyRateOf(state, capacity);
-            double reduction = 0.0;
-
-            if (occ <= 0.0) {
-                reduction = os * 0.12;
-            } else if (occ < 0.3) {
-                reduction = os * 0.08;
-            } else if (occ < 0.6) {
-                reduction = os * 0.04;
-            }
-
+            // Auto Adaptive responds smoothly to the actual occupancy rate.
+            double reduction = os * 0.10 * (1.0 - occ);
             factor *= (1.0 - reduction);
         }
 
@@ -386,6 +378,7 @@ public:
         }
 
         if (factor < 0.1) factor = 0.1;
+        if (factor > 1.0) factor = 1.0;
 
         return factor;
     }
@@ -2326,7 +2319,7 @@ void startHttpServer() {
 int main() {
     while (true) {
         cout << "\n========================================\n";
-        cout << "   GROUP 3 ENERGY MANAGEMENT\n";
+        cout << "   GREEN GRID ENERGY MANAGEMENT\n";
         cout << "========================================\n";
         cout << "10. Mo bang dieu khien web\n";
         cout << "0. Thoat\n";
